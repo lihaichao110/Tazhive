@@ -1,0 +1,40 @@
+.page {
+  display: flex;
+  min-height: 100svh;
+  flex-direction: column;
+  text-align: center;
+}
+
+.ticks {
+  position: relative;
+  width: 100%;
+}
+
+.ticks::before,
+.ticks::after {
+  position: absolute;
+  top: -4.5px;
+  border: 5px solid transparent;
+  content: '';
+}
+
+.ticks::before {
+  left: 0;
+  border-left-color: var(--color-border);
+}
+
+.ticks::after {
+  right: 0;
+  border-right-color: var(--color-border);
+}
+
+.spacer {
+  height: 88px;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (width <= 1024px) {
+  .spacer {
+    height: 48px;
+  }
+}

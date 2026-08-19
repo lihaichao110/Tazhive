@@ -1,0 +1,19 @@
+.button {
+  margin-bottom: 24px;
+  padding: 5px 10px;
+  border: 2px solid transparent;
+  border-radius: 5px;
+  color: var(--color-accent);
+  background: var(--color-accent-background);
+  font: 16px var(--font-mono);
+  transition: border-color 0.3s;
+}
+
+.button:hover {
+  border-color: var(--color-accent-border);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}

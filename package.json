@@ -1,12 +1,16 @@
 {
-  "name": "vite-project",
+  "name": "tazhive",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "oxlint . --deny-warnings",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -23,6 +27,7 @@
     "@vitejs/plugin-react": "^6.0.4",
     "babel-plugin-react-compiler": "^1.0.0",
     "oxlint": "^1.75.0",
+    "prettier": "^3.6.2",
     "typescript": "~6.0.2",
     "vite": "^8.2.0"
   }
