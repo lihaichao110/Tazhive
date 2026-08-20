@@ -1,0 +1,67 @@
+// Sender root：替代原手写容器，保持胶囊外观与页面设计令牌一致。
+.sender {
+  border: 1px solid var(--color-border);
+  border-radius: 28px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-input);
+  transition: border-color 0.15s ease;
+
+  &:focus-within {
+    border-color: var(--color-accent);
+  }
+
+  // 嵌套两层内置类将特异度提升到 (0,3,0)，
+  // 压过 cssinjs 注入的 :where(...).ant-sender .ant-sender-input (0,2,0)，
+  // 否则输入区字号 17px 会被组件库默认 14px 覆盖。
+  :global(.ant-sender-content) :global(.ant-sender-input) {
+    font-family: inherit;
+    font-size: 17px;
+    line-height: 1.6;
+
+    &::placeholder {
+      color: var(--color-text-muted);
+    }
+  }
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+
+  &:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text-primary);
+  }
+
+  &:active {
+    background: var(--color-surface-muted);
+  }
+}
+
+.toolLabel {
+  color: inherit;
+}

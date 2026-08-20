@@ -13,12 +13,11 @@
   }
 }
 
+// 对话页需要满屏布局（顶部导航与底部输入区贴边），
+// 因此 #root 不再使用定宽边框框架，改由各页面自行约束内容宽度。
 #root {
-  width: var(--layout-max-width);
-  max-width: 100%;
+  width: 100%;
   min-height: 100svh;
-  margin: 0 auto;
-  border-inline: 1px solid var(--color-border);
 }
 
 h1,

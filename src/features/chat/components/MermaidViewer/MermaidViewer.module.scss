@@ -1,0 +1,144 @@
+.viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.frame {
+  position: relative;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+}
+
+.toolbar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
+}
+
+.toolButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+
+  &:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text-primary);
+  }
+
+  &:active {
+    background: var(--color-surface-muted);
+  }
+}
+
+.toolButtonActive {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.scaleLabel {
+  min-width: 40px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.canvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 380px;
+  border-radius: 16px;
+  cursor: grab;
+  // 拖动图表时阻止触摸滚动，避免手势冲突。
+  touch-action: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.chart,
+.chartDragging {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  transform-origin: center center;
+
+  :global(svg) {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+.chart {
+  transition: transform 0.15s ease;
+}
+
+.chartDragging {
+  // 拖动时关闭过渡，保证位移跟手。
+  transition: none;
+}
+
+.loading {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.error {
+  margin: 0;
+  padding: 48px 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.code {
+  max-height: 280px;
+  margin: 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--color-surface-muted);
+  overflow: auto;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+
+  // 覆盖全局行内 code 样式，代码块内还原为块级展示。
+  code {
+    display: block;
+    padding: 0;
+    background: transparent;
+    font: inherit;
+  }
+}
