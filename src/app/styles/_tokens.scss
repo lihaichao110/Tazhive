@@ -1,3 +1,5 @@
+// 设计令牌保持 CSS 自定义属性而非 SCSS 变量：
+// 明暗主题依赖 prefers-color-scheme 在运行时切换变量值，SCSS 变量在编译期固化，无法实现。
 :root {
   --color-text: #6b6375;
   --color-heading: #08060d;
@@ -13,10 +15,8 @@
   --font-heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, Consolas, monospace;
   --layout-max-width: 1126px;
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
+  @media (prefers-color-scheme: dark) {
     --color-text: #9ca3af;
     --color-heading: #f3f4f6;
     --color-background: #16171d;

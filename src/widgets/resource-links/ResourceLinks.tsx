@@ -1,6 +1,6 @@
 import { RESOURCE_GROUPS } from './model/resourceGroups'
 import { ResourcePanel } from './ui/ResourcePanel'
-import styles from './ResourceLinks.module.css'
+import styles from './ResourceLinks.module.scss'
 
 export function ResourceLinks() {
   return (

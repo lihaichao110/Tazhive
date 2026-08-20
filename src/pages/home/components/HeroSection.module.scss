@@ -5,6 +5,11 @@
   gap: 25px;
   place-content: center;
   place-items: center;
+
+  @media (width <= 1024px) {
+    gap: 18px;
+    padding: 32px 20px 24px;
+  }
 }
 
 .hero {
@@ -42,11 +47,4 @@
   width: auto;
   height: 26px;
   transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg) scale(0.8);
-}
-
-@media (width <= 1024px) {
-  .section {
-    gap: 18px;
-    padding: 32px 20px 24px;
-  }
 }

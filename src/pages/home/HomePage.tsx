@@ -1,5 +1,5 @@
 import { HeroSection } from './components/HeroSection'
-import styles from './HomePage.module.css'
+import styles from './HomePage.module.scss'
 
 import { ResourceLinks } from '@/widgets/resource-links'
 

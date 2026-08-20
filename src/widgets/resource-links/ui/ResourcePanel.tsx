@@ -1,6 +1,6 @@
 import type { ResourceGroup } from '../model/types'
 import { ResourceIcon } from './ResourceIcon'
-import styles from './ResourcePanel.module.css'
+import styles from './ResourcePanel.module.scss'
 
 import { SpriteIcon } from '@/shared/components/SpriteIcon'
 

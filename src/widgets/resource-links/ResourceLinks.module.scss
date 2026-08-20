@@ -2,10 +2,8 @@
   display: flex;
   border-top: 1px solid var(--color-border);
   text-align: left;
-}
 
-@media (width <= 1024px) {
-  .section {
+  @media (width <= 1024px) {
     flex-direction: column;
     text-align: center;
   }

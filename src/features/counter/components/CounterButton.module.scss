@@ -7,13 +7,13 @@
   background: var(--color-accent-background);
   font: 16px var(--font-mono);
   transition: border-color 0.3s;
-}
 
-.button:hover {
-  border-color: var(--color-accent-border);
-}
+  &:hover {
+    border-color: var(--color-accent-border);
+  }
 
-.button:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
 }

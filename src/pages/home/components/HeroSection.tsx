@@ -1,7 +1,7 @@
 import { CounterButton } from '@/features/counter'
 import { heroImage, reactLogo, viteLogo } from '@/shared/assets'
 
-import styles from './HeroSection.module.css'
+import styles from './HeroSection.module.scss'
 
 export function HeroSection() {
   return (

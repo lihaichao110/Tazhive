@@ -1,5 +1,5 @@
 import { useCounter } from '../hooks/useCounter'
-import styles from './CounterButton.module.css'
+import styles from './CounterButton.module.scss'
 
 export function CounterButton() {
   const { count, increment } = useCounter()
