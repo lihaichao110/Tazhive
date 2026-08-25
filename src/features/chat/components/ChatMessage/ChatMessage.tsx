@@ -13,7 +13,7 @@ export function ChatMessage({ message, onRetry }: ChatMessageProps) {
   if (message.role === 'assistant') {
     return (
       <div className={styles.assistantRow}>
-        <ChatMessageContent content={message.content} role={message.role} />
+        <ChatMessageContent content={message.content} role={message.role} status={message.status} />
         {message.status === 'error' ? (
           <button type="button" className={styles.retryButton} onClick={() => onRetry(message.id)}>
             重试
@@ -25,7 +25,7 @@ export function ChatMessage({ message, onRetry }: ChatMessageProps) {
 
   return (
     <div className={styles.userRow}>
-      <ChatMessageContent content={message.content} role={message.role} />
+      <ChatMessageContent content={message.content} role={message.role} status={message.status} />
     </div>
   )
 }

@@ -1,27 +1,39 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import { Sender } from '@ant-design/x'
-import { LayoutGrid, Plus, Zap } from 'lucide-react'
+import { LayoutGrid, Plus } from 'lucide-react'
 
 import styles from './ChatComposer.module.scss'
+import { ChatModeSelector } from '../ChatModeSelector/ChatModeSelector'
+
+import type { ChatMode } from '../../model/types'
 
 interface ChatComposerProps {
   readonly isReplying: boolean
+  readonly mode: ChatMode
   readonly onCancel: () => void
+  readonly onModeChange: (mode: ChatMode) => void
   readonly onSend: (text: string) => boolean
 }
 
 // 底部工具行：左侧为自定义工具按钮，右侧为 Sender 默认的语音与发送按钮。
-function ComposerFooter({ actionNode }: { readonly actionNode: ReactNode }) {
+function ComposerFooter({
+  actionNode,
+  isReplying,
+  mode,
+  onModeChange,
+}: {
+  readonly actionNode: ReactNode
+  readonly isReplying: boolean
+  readonly mode: ChatMode
+  readonly onModeChange: (mode: ChatMode) => void
+}) {
   return (
     <div className={styles.toolbar}>
       <div className={styles.toolbarLeft}>
         <button type="button" className={styles.toolButton} aria-label="添加附件" title="添加附件">
           <Plus size={16} />
         </button>
-        <button type="button" className={styles.toolButton} aria-label="快速操作" title="快速">
-          <Zap size={16} />
-          <span className={styles.toolLabel}>快速</span>
-        </button>
+        <ChatModeSelector disabled={isReplying} mode={mode} onChange={onModeChange} />
         <button type="button" className={styles.toolButton} aria-label="更多操作" title="更多">
           <LayoutGrid size={16} />
           <span className={styles.toolLabel}>更多</span>
@@ -32,14 +44,27 @@ function ComposerFooter({ actionNode }: { readonly actionNode: ReactNode }) {
   )
 }
 
-// 适配 Sender 的 footer 回调签名，避免在 JSX 中创建大段匿名结构。
-function renderComposerFooter(actionNode: ReactNode) {
-  return <ComposerFooter actionNode={actionNode} />
-}
-
 // 管理输入草稿，并将发送与取消动作交给会话 Hook 处理。
-export function ChatComposer({ isReplying, onCancel, onSend }: ChatComposerProps) {
+export function ChatComposer({
+  isReplying,
+  mode,
+  onCancel,
+  onModeChange,
+  onSend,
+}: ChatComposerProps) {
   const [value, setValue] = useState('')
+
+  const renderFooter = useCallback(
+    (actionNode: ReactNode) => (
+      <ComposerFooter
+        actionNode={actionNode}
+        isReplying={isReplying}
+        mode={mode}
+        onModeChange={onModeChange}
+      />
+    ),
+    [isReplying, mode, onModeChange],
+  )
 
   const handleSubmit = useCallback(
     (content: string) => {
@@ -65,7 +90,7 @@ export function ChatComposer({ isReplying, onCancel, onSend }: ChatComposerProps
       // suffix=false 移除输入行右侧的默认按钮组，改由 footer 承载，
       // 输入区独占一行全宽，避免移动端窄屏下被工具按钮挤压换行。
       suffix={false}
-      footer={renderComposerFooter}
+      footer={renderFooter}
       classNames={{ root: styles.sender }}
     />
   )

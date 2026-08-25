@@ -3,35 +3,6 @@
   justify-content: flex-end;
 }
 
-.chat {
-  padding: 8px 12px;
-  border-radius: 8px;
-  line-height: 1.5;
-  overflow-wrap: break-word;
-  font-size: 14px;
-  margin: 0;
-}
-
-.userBubble {
-  text-align: right;
-  max-width: 75%;
-  color: #fff;
-  // 固定使用浅色模式的深绿而非 var(--color-accent)：
-  // 深色模式的亮绿变体上白字对比度仅约 2:1，固定深绿可保证两种模式下白字均达 AA。
-  background-color: #028550;
-
-  @media (width <= 640px) {
-    max-width: 85%;
-  }
-}
-
-.assistantText {
-  display: inline-flex;
-  width: fit-content;
-  color: var(--color-text-primary);
-  background: var(--color-surface-muted);
-}
-
 .assistantRow {
   display: flex;
   align-items: flex-start;

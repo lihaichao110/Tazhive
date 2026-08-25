@@ -1,5 +1,7 @@
 export type ChatRole = 'user' | 'assistant'
 
+export type ChatMode = 'fast' | 'deep'
+
 export type ChatMessageStatus = 'local' | 'loading' | 'updating' | 'success' | 'error' | 'abort'
 
 export interface TextMessageContent {

@@ -1,8 +1,13 @@
 import { lazy, Suspense, type ReactNode } from 'react'
+import { XMarkdown } from '@ant-design/x-markdown'
 
-import type { ChatMessageContent as MessageContent, ChatRole } from '../../model/types'
+import type {
+  ChatMessageContent as MessageContent,
+  ChatMessageStatus,
+  ChatRole,
+} from '../../model/types'
 
-import styles from '../ChatMessage/ChatMessage.module.scss'
+import styles from './ChatMessageContent.module.scss'
 
 // Mermaid 体积较大，仅在回复中实际出现图表块时加载对应组件。
 const MermaidViewer = lazy(async () => {
@@ -13,28 +18,60 @@ const MermaidViewer = lazy(async () => {
 interface ChatMessageContentProps {
   readonly content: readonly MessageContent[]
   readonly role: ChatRole
+  readonly status: ChatMessageStatus
 }
+
+const STREAMING_ACTIVE = { hasNextChunk: true } as const
+const STREAMING_FINISHED = { hasNextChunk: false } as const
 
 // 联合类型新增成员却未补充渲染分支时，在编译期和运行期都能尽早暴露问题。
 function assertNever(content: never): never {
   throw new Error(`不支持的消息内容类型：${JSON.stringify(content)}`)
 }
 
-// 将单个领域内容块分派给文本或 Mermaid 渲染器，并保留消息内的原始顺序。
-function renderContent(content: MessageContent, role: ChatRole, index: number): ReactNode {
+// 只有正在生成的最后一个助手文本块可能包含未闭合语法，交由 XMarkdown 保留流式缓存。
+function isActiveStreamingBlock(
+  role: ChatRole,
+  status: ChatMessageStatus,
+  index: number,
+  lastIndex: number,
+): boolean {
+  return role === 'assistant' && index === lastIndex && ['loading', 'updating'].includes(status)
+}
+
+// 将单个领域内容块分派给纯文本、Markdown 或 Mermaid 渲染器，并保留消息内的原始顺序。
+function renderContent(
+  content: MessageContent,
+  role: ChatRole,
+  status: ChatMessageStatus,
+  index: number,
+  lastIndex: number,
+): ReactNode {
   switch (content.type) {
-    case 'text':
+    case 'text': {
+      if (role === 'assistant') {
+        const streaming = isActiveStreamingBlock(role, status, index, lastIndex)
+          ? STREAMING_ACTIVE
+          : STREAMING_FINISHED
+
+        return (
+          <XMarkdown
+            key={`text-${index}`}
+            className={styles.assistantMarkdown}
+            content={content.text}
+            escapeRawHtml
+            openLinksInNewTab
+            streaming={streaming}
+          />
+        )
+      }
+
       return (
-        <p
-          key={`text-${index}`}
-          className={[
-            styles.chat,
-            role === 'assistant' ? styles.assistantText : styles.userBubble,
-          ].join(' ')}
-        >
+        <p key={`text-${index}`} className={styles.userBubble}>
           {content.text}
         </p>
       )
+    }
     case 'mermaid':
       return (
         <Suspense
@@ -49,7 +86,8 @@ function renderContent(content: MessageContent, role: ChatRole, index: number): 
   }
 }
 
-// 渲染一条消息中的结构化内容块，角色仅影响纯文本的视觉样式。
-export function ChatMessageContent({ content, role }: ChatMessageContentProps) {
-  return content.map((block, index) => renderContent(block, role, index))
+// 渲染一条消息中的结构化内容块，助手文本支持安全的流式 Markdown 展示。
+export function ChatMessageContent({ content, role, status }: ChatMessageContentProps) {
+  const lastIndex = content.length - 1
+  return content.map((block, index) => renderContent(block, role, status, index, lastIndex))
 }

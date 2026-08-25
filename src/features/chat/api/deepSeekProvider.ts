@@ -6,6 +6,7 @@ import {
   type XModelParams,
 } from '@ant-design/x-sdk'
 
+import type { DeepSeekThinkingConfig } from '../model/chatMode'
 import type { ChatRole } from '../model/types'
 
 import type { DeepSeekConfig } from '@/shared/config'
@@ -17,7 +18,7 @@ export interface DeepSeekMessage extends XModelMessage {
 
 export interface DeepSeekRequestParams extends XModelParams {
   readonly messages?: DeepSeekMessage[]
-  readonly thinking?: { readonly type: 'disabled' }
+  readonly thinking?: DeepSeekThinkingConfig
 }
 
 interface DeepSeekProviderCallbacks {

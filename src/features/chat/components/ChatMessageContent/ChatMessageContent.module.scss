@@ -1,0 +1,102 @@
+.userBubble,
+.assistantMarkdown {
+  max-width: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  overflow-wrap: break-word;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.userBubble {
+  max-width: 75%;
+  color: #fff;
+  // 固定使用浅色模式的深绿，避免暗色令牌的亮绿背景降低白字对比度。
+  background-color: #028550;
+  text-align: right;
+  white-space: pre-wrap;
+
+  @media (width <= 640px) {
+    max-width: 85%;
+  }
+}
+
+.assistantMarkdown {
+  width: fit-content;
+  color: var(--color-text-primary);
+  background: var(--color-surface-muted);
+
+  :global(h1),
+  :global(h2),
+  :global(h3),
+  :global(h4),
+  :global(h5),
+  :global(h6) {
+    margin: 0.8em 0 0.4em;
+    color: inherit;
+    font-family: inherit;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  :global(h1:first-child),
+  :global(h2:first-child),
+  :global(h3:first-child),
+  :global(h4:first-child),
+  :global(h5:first-child),
+  :global(h6:first-child) {
+    margin-top: 0;
+  }
+
+  :global(blockquote) {
+    margin: 0.75em 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--color-accent-border);
+    color: var(--color-text-secondary);
+  }
+
+  :global(a) {
+    color: var(--color-accent);
+    text-underline-offset: 2px;
+
+    &:focus-visible {
+      border-radius: 2px;
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+  }
+
+  :global(pre) {
+    max-width: 100%;
+    padding: 12px;
+    border-radius: 6px;
+    background: var(--color-code-background);
+    overflow-x: auto;
+  }
+
+  :global(pre code) {
+    display: block;
+    padding: 0;
+    background: transparent;
+    font: 13px/1.55 var(--font-mono);
+    white-space: pre;
+  }
+
+  :global(table) {
+    display: block;
+    max-width: 100%;
+    border-collapse: collapse;
+    overflow-x: auto;
+  }
+
+  :global(th),
+  :global(td) {
+    border: 1px solid var(--color-border);
+  }
+
+  :global(hr) {
+    border: 0;
+    border-top: 1px solid var(--color-border);
+  }
+}

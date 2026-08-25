@@ -12,6 +12,7 @@ import {
   serializeMessageContent,
 } from '../lib/messageContent'
 import { INITIAL_MESSAGES } from '../model/initialMessages'
+import { DEFAULT_CHAT_MODE, toDeepSeekThinking } from '../model/chatMode'
 import type { ChatMessage, ChatMessageStatus } from '../model/types'
 
 import { readDeepSeekConfig } from '@/shared/config'
@@ -49,6 +50,7 @@ function toChatMessage(info: MessageInfo<DeepSeekMessage>): ChatMessage {
 // 负责 DeepSeek 会话的发送、流式状态、终止与失败重试，并向页面暴露稳定的领域模型。
 export function useChat() {
   const [requestError, setRequestError] = useState<string | null>(null)
+  const [mode, setMode] = useState(DEFAULT_CHAT_MODE)
   // ref 在同一事件循环内立即生效，避免连续提交绕过 React 异步状态更新。
   const requestInFlightRef = useRef(false)
   const config = DEEPSEEK_CONFIG_RESULT.config
@@ -113,10 +115,10 @@ export function useChat() {
       setMessages((current) =>
         current.filter((info) => info.status !== 'error' && info.status !== 'abort'),
       )
-      onRequest({ messages: [{ role: 'user', content }] })
+      onRequest({ messages: [{ role: 'user', content }], thinking: toDeepSeekThinking(mode) })
       return true
     },
-    [onRequest, provider, setMessages],
+    [mode, onRequest, provider, setMessages],
   )
 
   const abort = useCallback(() => {
@@ -144,15 +146,17 @@ export function useChat() {
       )
       requestInFlightRef.current = true
       setRequestError(null)
-      onRequest({ messages: [{ role: 'user', content }] })
+      onRequest({ messages: [{ role: 'user', content }], thinking: toDeepSeekThinking(mode) })
     },
-    [onRequest, provider, sdkMessages, setMessages],
+    [mode, onRequest, provider, sdkMessages, setMessages],
   )
 
   return {
     messages: sdkMessages.map(toChatMessage),
     isReplying: isRequesting,
     error: requestError ?? DEEPSEEK_CONFIG_RESULT.error,
+    mode,
+    setMode,
     send,
     abort,
     retry,

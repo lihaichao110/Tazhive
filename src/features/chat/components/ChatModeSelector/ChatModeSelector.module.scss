@@ -1,0 +1,71 @@
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text-secondary, #666a70);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+
+  &:hover:not(:disabled),
+  &[aria-expanded='true'] {
+    background: var(--color-surface-hover, #efefef);
+    color: var(--color-text-primary, #202124);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent, #028550);
+    outline-offset: 2px;
+  }
+
+  &:active:not(:disabled) {
+    background: var(--color-surface-muted, #f5f5f5);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.dropdown {
+  min-width: 184px;
+
+  :global(.ant-dropdown-menu) {
+    padding: 6px;
+    border: 1px solid var(--color-border, #e5e5e5);
+    border-radius: 12px;
+    background: var(--color-surface, #ffffff);
+    box-shadow: var(--shadow-interactive, 0 10px 24px rgb(0 0 0 / 10%));
+  }
+
+  :global(.ant-dropdown-menu-item) {
+    min-height: 40px;
+    border-radius: 8px;
+    color: var(--color-text-primary, #202124);
+  }
+
+  :global(.ant-dropdown-menu-item:not(.ant-dropdown-menu-item-selected):hover) {
+    background: var(--color-surface-hover, #efefef);
+  }
+
+  :global(.ant-dropdown-menu-item-selected),
+  :global(.ant-dropdown-menu-item-selected:hover) {
+    background: var(--color-surface-selected, #fafafa);
+  }
+}
+
+.menuLabel {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}

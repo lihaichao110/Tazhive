@@ -7,7 +7,7 @@ import { ChatComposer, ChatMessage, TypingIndicator, useChat } from '@/features/
 
 // 组合聊天页各区域，并协调流式回复、错误提示和自动滚动等页面级行为。
 export function HomePage() {
-  const { messages, isReplying, error, send, abort, retry } = useChat()
+  const { messages, isReplying, error, mode, setMode, send, abort, retry } = useChat()
   const bottomAnchorRef = useRef<HTMLDivElement>(null)
   // 流式文本已经可见时不再显示输入动画，避免同时出现两种“正在回复”反馈。
   const isStreamingContentVisible = messages.some(
@@ -39,7 +39,13 @@ export function HomePage() {
           </div>
         ) : null}
         <div className={styles.composerWrap}>
-          <ChatComposer isReplying={isReplying} onCancel={abort} onSend={send} />
+          <ChatComposer
+            isReplying={isReplying}
+            mode={mode}
+            onCancel={abort}
+            onModeChange={setMode}
+            onSend={send}
+          />
         </div>
       </footer>
     </div>
