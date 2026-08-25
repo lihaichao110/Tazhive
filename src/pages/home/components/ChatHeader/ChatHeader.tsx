@@ -21,7 +21,7 @@ export function ChatHeader() {
       <div className={styles.brand}>
         <div className={styles.brandText}>
           <span className={styles.brandTitle}>问候</span>
-          <span className={styles.brandSubtitle}>AI 生成可能有误</span>
+          <span className={styles.brandSubtitle}>仅本地演示 · API Key 会暴露</span>
         </div>
       </div>
       <div className={styles.right}>

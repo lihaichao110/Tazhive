@@ -6,7 +6,8 @@ import styles from './ChatComposer.module.scss'
 
 interface ChatComposerProps {
   readonly isReplying: boolean
-  readonly onSend: (text: string) => void
+  readonly onCancel: () => void
+  readonly onSend: (text: string) => boolean
 }
 
 // 底部工具行：左侧为自定义工具按钮，右侧为 Sender 默认的语音与发送按钮。
@@ -35,7 +36,7 @@ function renderComposerFooter(actionNode: ReactNode) {
   return <ComposerFooter actionNode={actionNode} />
 }
 
-export function ChatComposer({ isReplying, onSend }: ChatComposerProps) {
+export function ChatComposer({ isReplying, onCancel, onSend }: ChatComposerProps) {
   const [value, setValue] = useState('')
 
   const handleSubmit = useCallback(
@@ -43,8 +44,7 @@ export function ChatComposer({ isReplying, onSend }: ChatComposerProps) {
       const text = content.trim()
       // Sender 空值时禁用发送，这里兜底纯空白内容。
       if (!text) return
-      onSend(text)
-      setValue('')
+      if (onSend(text)) setValue('')
     },
     [onSend],
   )
@@ -54,6 +54,7 @@ export function ChatComposer({ isReplying, onSend }: ChatComposerProps) {
       value={value}
       onChange={setValue}
       onSubmit={handleSubmit}
+      onCancel={onCancel}
       loading={isReplying}
       allowSpeech
       placeholder="发消息..."

@@ -10,11 +10,13 @@
     "lint": "oxlint . --deny-warnings",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test": "vitest run",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check",
     "preview": "vite preview"
   },
   "dependencies": {
     "@ant-design/x": "^2.9.0",
+    "@ant-design/x-sdk": "2.9.0",
     "antd": "^6.6.1",
     "lucide-react": "^1.32.0",
     "mermaid": "^11.16.1",
@@ -34,6 +36,7 @@
     "prettier": "^3.6.2",
     "sass": "^1.102.0",
     "typescript": "~6.0.2",
-    "vite": "^8.2.0"
+    "vite": "^8.2.0",
+    "vitest": "^4.1.11"
   }
 }
