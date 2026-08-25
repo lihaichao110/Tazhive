@@ -1,5 +1,4 @@
 export { ChatMessage } from './components/ChatMessage/ChatMessage'
 export { ChatComposer } from './components/ChatComposer/ChatComposer'
-export { MermaidViewer } from './components/MermaidViewer/MermaidViewer'
 export { TypingIndicator } from './components/TypingIndicator/TypingIndicator'
 export { useChat } from './hooks/useChat'

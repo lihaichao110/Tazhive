@@ -1,4 +1,5 @@
 import type { ChatMessage as ChatMessageModel } from '../../model/types'
+import { ChatMessageContent } from '../ChatMessageContent/ChatMessageContent'
 import styles from './ChatMessage.module.scss'
 
 interface ChatMessageProps {
@@ -6,12 +7,13 @@ interface ChatMessageProps {
   readonly onRetry: (messageId: string) => void
 }
 
+// 根据消息角色与请求状态选择布局，并为失败的助手消息提供原位重试入口。
 export function ChatMessage({ message, onRetry }: ChatMessageProps) {
   // AI 消息靠左、以普通文本展示；用户消息靠右、使用浅灰气泡。
   if (message.role === 'assistant') {
     return (
       <div className={styles.assistantRow}>
-        <p className={[styles.assistantText, styles.chat].join(' ')}>{message.content}</p>
+        <ChatMessageContent content={message.content} role={message.role} />
         {message.status === 'error' ? (
           <button type="button" className={styles.retryButton} onClick={() => onRetry(message.id)}>
             重试
@@ -23,7 +25,7 @@ export function ChatMessage({ message, onRetry }: ChatMessageProps) {
 
   return (
     <div className={styles.userRow}>
-      <p className={[styles.userBubble, styles.chat].join(' ')}>{message.content}</p>
+      <ChatMessageContent content={message.content} role={message.role} />
     </div>
   )
 }

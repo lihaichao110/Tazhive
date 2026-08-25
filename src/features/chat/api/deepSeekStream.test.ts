@@ -3,6 +3,7 @@ import { DeepSeekChatProvider, XRequest, XStream, type SSEOutput } from '@ant-de
 
 import type { DeepSeekMessage, DeepSeekRequestParams } from './deepSeekProvider'
 
+// 按指定字节位置切分响应，模拟中文字符和 SSE 事件跨网络分片到达的情况。
 function createByteStream(
   bytes: Uint8Array,
   splitPoints: readonly number[],

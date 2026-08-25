@@ -1,7 +1,9 @@
 import mermaid from 'mermaid'
 
+// strict 模式负责过滤消息中潜在的不可信 Mermaid 内容，再将渲染结果交给 React 注入。
 const MERMAID_CONFIG = {
   startOnLoad: false,
+  securityLevel: 'strict' as const,
   theme: 'base' as const,
   themeVariables: {
     background: '#ffffff',
@@ -18,6 +20,7 @@ const MERMAID_CONFIG = {
 
 let isMermaidReady = false
 
+// Mermaid 配置是全局状态，同一页面生命周期内只初始化一次以避免重复覆盖配置。
 function ensureMermaidReady(): void {
   if (isMermaidReady) return
 
@@ -25,6 +28,7 @@ function ensureMermaidReady(): void {
   isMermaidReady = true
 }
 
+// 将 Mermaid 源码转换为可展示的 SVG，渲染错误由调用组件统一映射为失败状态。
 export async function renderMermaidDiagram(chartId: string, source: string): Promise<string> {
   ensureMermaidReady()
   const { svg } = await mermaid.render(chartId, source)

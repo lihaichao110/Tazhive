@@ -32,10 +32,12 @@ function ComposerFooter({ actionNode }: { readonly actionNode: ReactNode }) {
   )
 }
 
+// 适配 Sender 的 footer 回调签名，避免在 JSX 中创建大段匿名结构。
 function renderComposerFooter(actionNode: ReactNode) {
   return <ComposerFooter actionNode={actionNode} />
 }
 
+// 管理输入草稿，并将发送与取消动作交给会话 Hook 处理。
 export function ChatComposer({ isReplying, onCancel, onSend }: ChatComposerProps) {
   const [value, setValue] = useState('')
 
@@ -44,6 +46,7 @@ export function ChatComposer({ isReplying, onCancel, onSend }: ChatComposerProps
       const text = content.trim()
       // Sender 空值时禁用发送，这里兜底纯空白内容。
       if (!text) return
+      // 配置缺失或请求被拒绝时保留草稿，便于用户修复问题后重新发送。
       if (onSend(text)) setValue('')
     },
     [onSend],

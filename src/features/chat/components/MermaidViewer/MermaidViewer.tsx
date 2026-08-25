@@ -3,10 +3,14 @@ import { Code, Scan, Workflow } from 'lucide-react'
 
 import { useChartTransform } from '../../hooks/useChartTransform'
 import { renderMermaidDiagram } from '../../lib/renderMermaidDiagram'
-import { MERMAID_SOURCE } from '../../model/mermaidSource'
 import styles from './MermaidViewer.module.scss'
 
-export function MermaidViewer() {
+interface MermaidViewerProps {
+  readonly source: string
+}
+
+// 将 Mermaid 源码异步渲染为可缩放画布，并支持在图形与源码视图间切换。
+export function MermaidViewer({ source }: MermaidViewerProps) {
   const [svg, setSvg] = useState<string | null>(null)
   const [hasError, setHasError] = useState(false)
   const [showCode, setShowCode] = useState(false)
@@ -24,10 +28,13 @@ export function MermaidViewer() {
   const chartId = `mermaid-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
 
   useEffect(() => {
+    // source 更新时先清除旧结果，避免新图渲染期间短暂显示上一张图。
     let isCancelled = false
+    setSvg(null)
+    setHasError(false)
     void (async () => {
       try {
-        const rendered = await renderMermaidDiagram(chartId, MERMAID_SOURCE)
+        const rendered = await renderMermaidDiagram(chartId, source)
         if (!isCancelled) setSvg(rendered)
       } catch {
         // 渲染失败时给用户友好提示，不向上抛出异常。
@@ -35,9 +42,10 @@ export function MermaidViewer() {
       }
     })()
     return () => {
+      // Mermaid 渲染无法直接取消，用标记阻止卸载后或旧请求晚到时写入状态。
       isCancelled = true
     }
-  }, [chartId])
+  }, [chartId, source])
 
   const toggleCode = useCallback(() => {
     setShowCode((prev) => !prev)
@@ -48,7 +56,7 @@ export function MermaidViewer() {
   if (hasError) {
     return (
       <section className={styles.viewer} aria-label="Mermaid 图表">
-        <h2 className={styles.title}>Mermaid 美人鱼示例</h2>
+        <h2 className={styles.title}>Mermaid 图表</h2>
         <p className={styles.error} role="alert">
           图表加载失败，请刷新页面重试。
         </p>
@@ -58,7 +66,7 @@ export function MermaidViewer() {
 
   return (
     <section className={styles.viewer} aria-label="Mermaid 图表">
-      <h2 className={styles.title}>Mermaid 美人鱼示例</h2>
+      <h2 className={styles.title}>Mermaid 图表</h2>
       <div className={styles.frame}>
         <div className={styles.toolbar} role="toolbar" aria-label="图表工具">
           {!showCode ? (
@@ -86,7 +94,7 @@ export function MermaidViewer() {
         </div>
         {showCode ? (
           <pre className={styles.code} aria-label="Mermaid 源码">
-            <code>{MERMAID_SOURCE}</code>
+            <code>{source}</code>
           </pre>
         ) : (
           <div
@@ -108,7 +116,7 @@ export function MermaidViewer() {
                 style={{
                   transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
                 }}
-                // mermaid.render 输出的 SVG 字符串来自本地常量源码，属于可信内容。
+                // Mermaid 在 strict 模式下处理不可信源码，此处只注入其渲染结果。
                 dangerouslySetInnerHTML={{ __html: svg }}
               />
             ) : (

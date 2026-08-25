@@ -1,20 +1,11 @@
 import type { ChatMessage } from './types'
 
-// 示例对话照抄参考稿文案（含“meimaid”原文拼写，刻意保留以贴近参考图）。
+// 首次进入对话时展示的欢迎消息。
 export const INITIAL_MESSAGES: readonly ChatMessage[] = [
-  { id: 'msg-1', role: 'user', content: '你好', status: 'success' },
   {
     id: 'msg-2',
     role: 'assistant',
-    content: '你好😊，有什么可以帮你的吗？',
+    content: [{ type: 'text', text: '你好😊，有什么可以帮你的吗？' }],
     status: 'success',
   },
-  { id: 'msg-3', role: 'user', content: '给我生成一个 meimaid 图', status: 'success' },
-  {
-    id: 'msg-4',
-    role: 'assistant',
-    content: '游客模式暂不支持生成图片和视频，请登录后再试',
-    status: 'success',
-  },
-  { id: 'msg-5', role: 'user', content: 'md 数据渲染的就好了', status: 'success' },
 ]

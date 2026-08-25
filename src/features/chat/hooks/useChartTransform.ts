@@ -39,6 +39,7 @@ interface PinchSnapshot {
 
 type GestureSnapshot = PanSnapshot | PinchSnapshot
 
+// 每次指针数量变化时重建手势基线，保证单指与双指模式切换时画面不跳变。
 function createGestureSnapshot(
   element: HTMLDivElement,
   pointers: ReadonlyMap<number, Point>,
@@ -67,15 +68,18 @@ function createGestureSnapshot(
   }
 }
 
+// 浏览器可能以像素、行或页上报滚轮距离，统一成近似像素后才能保持缩放手感一致。
 function normalizeWheelDelta(event: WheelEvent, element: HTMLDivElement): number {
   if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) return event.deltaY * 16
   if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) return event.deltaY * element.clientHeight
   return event.deltaY
 }
 
+// 管理图表画布的滚轮缩放、指针平移、双指缩放和键盘操作。
 export function useChartTransform() {
   const [transform, setTransform] = useState<ChartTransform>(INITIAL_TRANSFORM)
   const [isInteracting, setIsInteracting] = useState(false)
+  // 高频事件从 ref 读取最新值，避免事件监听器捕获过期的 React 状态。
   const transformRef = useRef<ChartTransform>(INITIAL_TRANSFORM)
   const pointersRef = useRef(new Map<number, Point>())
   const gestureRef = useRef<GestureSnapshot | null>(null)
@@ -89,6 +93,7 @@ export function useChartTransform() {
     [],
   )
 
+  // 状态驱动渲染，ref 则为同一帧内连续输入提供同步快照，两者必须一起更新。
   const updateTransform = useCallback((next: ChartTransform) => {
     transformRef.current = next
     setTransform(next)
@@ -115,6 +120,7 @@ export function useChartTransform() {
       const delta = normalizeWheelDelta(event, canvas)
       const current = transformRef.current
       const scale = current.scale * Math.exp(-delta * WHEEL_ZOOM_SENSITIVITY)
+      // 以鼠标所在位置作为缩放锚点，避免缩放时目标内容从指针下漂移。
       const anchor = toCanvasPoint(canvas, {
         x: event.clientX,
         y: event.clientY,
@@ -131,6 +137,7 @@ export function useChartTransform() {
     (element: HTMLDivElement | null) => {
       canvasRef.current?.removeEventListener('wheel', handleWheel)
       canvasRef.current = element
+      // 必须使用非 passive 原生监听器，才能阻止页面滚动并将滚轮交给画布缩放。
       element?.addEventListener('wheel', handleWheel, { passive: false })
     },
     [handleWheel],
@@ -149,6 +156,7 @@ export function useChartTransform() {
     const pointers = pointersRef.current
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
     event.currentTarget.setPointerCapture(event.pointerId)
+    // 第二根手指加入时重新记录中心、距离与变换，作为 pinch 的稳定起点。
     gestureRef.current = createGestureSnapshot(event.currentTarget, pointers, transformRef.current)
     setIsInteracting(true)
   }, [])
@@ -182,6 +190,7 @@ export function useChartTransform() {
       const scale = clampScale(
         gesture.transform.scale * (getDistance(first, second) / gesture.startDistance),
       )
+      // 缩放前后的手势中心应指向同一图表位置，因此平移量需按缩放比例同步修正。
       const ratio = scale / gesture.transform.scale
       updateTransform({
         x: center.x - ratio * (gesture.startCenter.x - gesture.transform.x),
@@ -196,6 +205,7 @@ export function useChartTransform() {
     const pointers = pointersRef.current
     if (!pointers.delete(event.pointerId)) return
 
+    // 双指抬起一指后，以剩余指针和当前变换建立新的平移基线。
     gestureRef.current = createGestureSnapshot(event.currentTarget, pointers, transformRef.current)
     setIsInteracting(pointers.size > 0)
   }, [])

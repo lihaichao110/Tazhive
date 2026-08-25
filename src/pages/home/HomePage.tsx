@@ -3,11 +3,13 @@ import { useEffect, useRef } from 'react'
 import { ChatHeader } from './components/ChatHeader/ChatHeader'
 import styles from './HomePage.module.scss'
 
-import { ChatComposer, ChatMessage, MermaidViewer, TypingIndicator, useChat } from '@/features/chat'
+import { ChatComposer, ChatMessage, TypingIndicator, useChat } from '@/features/chat'
 
+// 组合聊天页各区域，并协调流式回复、错误提示和自动滚动等页面级行为。
 export function HomePage() {
   const { messages, isReplying, error, send, abort, retry } = useChat()
   const bottomAnchorRef = useRef<HTMLDivElement>(null)
+  // 流式文本已经可见时不再显示输入动画，避免同时出现两种“正在回复”反馈。
   const isStreamingContentVisible = messages.some(
     (message) =>
       message.role === 'assistant' && message.status === 'updating' && message.content.length > 0,
@@ -27,7 +29,6 @@ export function HomePage() {
             <ChatMessage key={message.id} message={message} onRetry={retry} />
           ))}
           {isReplying && !isStreamingContentVisible ? <TypingIndicator /> : null}
-          <MermaidViewer />
           <div ref={bottomAnchorRef} aria-hidden="true" />
         </div>
       </main>
