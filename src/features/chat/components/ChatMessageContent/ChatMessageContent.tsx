@@ -6,6 +6,8 @@ import type {
   ChatMessageStatus,
   ChatRole,
 } from '../../model/types'
+import { MARKDOWN_CODE_COMPONENTS } from '../MarkdownCode/markdownCodeComponents'
+import { ThinkingMessageContent } from '../ThinkingMessageContent/ThinkingMessageContent'
 
 import styles from './ChatMessageContent.module.scss'
 
@@ -58,7 +60,9 @@ function renderContent(
           <XMarkdown
             key={`text-${index}`}
             className={styles.assistantMarkdown}
+            components={MARKDOWN_CODE_COMPONENTS}
             content={content.text}
+            disableDefaultStyles={['pre', 'code']}
             escapeRawHtml
             openLinksInNewTab
             streaming={streaming}
@@ -80,6 +84,15 @@ function renderContent(
         >
           <MermaidViewer source={content.source} />
         </Suspense>
+      )
+    case 'thinking':
+      return (
+        <ThinkingMessageContent
+          key={`thinking-${index}`}
+          text={content.text}
+          completed={content.completed}
+          status={status}
+        />
       )
     default:
       return assertNever(content)

@@ -9,12 +9,18 @@ export interface TextMessageContent {
   readonly text: string
 }
 
+export interface ThinkingMessageContent {
+  readonly type: 'thinking'
+  readonly text: string
+  readonly completed: boolean
+}
+
 export interface MermaidMessageContent {
   readonly type: 'mermaid'
   readonly source: string
 }
 
-export type ChatMessageContent = TextMessageContent | MermaidMessageContent
+export type ChatMessageContent = TextMessageContent | ThinkingMessageContent | MermaidMessageContent
 
 export interface ChatMessage {
   readonly id: string

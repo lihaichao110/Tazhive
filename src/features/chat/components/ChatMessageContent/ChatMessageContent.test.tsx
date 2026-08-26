@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import type { ThinkProps } from '@ant-design/x'
 import type { XMarkdownProps } from '@ant-design/x-markdown'
 
 import { ChatMessageContent } from './ChatMessageContent'
@@ -14,6 +15,10 @@ vi.mock('@ant-design/x-markdown', () => ({
     markdownCalls.push(props)
     return <div data-markdown-content={props.content}>{props.content}</div>
   },
+}))
+
+vi.mock('@ant-design/x', () => ({
+  Think: (props: ThinkProps) => <div data-title={props.title}>{props.children}</div>,
 }))
 
 describe('ChatMessageContent', () => {
@@ -32,7 +37,12 @@ describe('ChatMessageContent', () => {
 
     expect(markdownCalls).toHaveLength(1)
     expect(markdownCalls[0]).toMatchObject({
+      components: expect.objectContaining({
+        code: expect.any(Function),
+        pre: expect.any(Function),
+      }),
       content: '# 标题',
+      disableDefaultStyles: ['pre', 'code'],
       escapeRawHtml: true,
       openLinksInNewTab: true,
       streaming: { hasNextChunk: false },
@@ -68,6 +78,22 @@ describe('ChatMessageContent', () => {
 
     expect(markup.indexOf('前文')).toBeLessThan(markup.indexOf('图表组件加载中'))
     expect(markup.indexOf('图表组件加载中')).toBeLessThan(markup.indexOf('后文'))
+  })
+
+  it('将思考内容交给 Think 展示且不混入普通 Markdown', () => {
+    const markup = renderToStaticMarkup(
+      <ChatMessageContent
+        content={[
+          { type: 'thinking', text: '内部分析', completed: true },
+          { type: 'text', text: '最终回答' },
+        ]}
+        role="assistant"
+        status="success"
+      />,
+    )
+
+    expect(markup).toContain('已思考')
+    expect(markdownCalls.map((call) => call.content)).toEqual(['内部分析', '最终回答'])
   })
 
   it.each(['loading', 'updating'] as const)('状态为 %s 时流式渲染最后一个文本块', (status) => {

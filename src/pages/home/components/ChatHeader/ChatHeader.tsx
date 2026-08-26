@@ -1,16 +1,25 @@
-import { PanelLeft, Share2, SquarePen } from 'lucide-react'
+import { PanelLeft, SquarePen } from 'lucide-react'
 
 import styles from './ChatHeader.module.scss'
 
-export function ChatHeader() {
+interface ChatHeaderProps {
+  readonly isSidebarOpen: boolean
+  readonly onSidebarToggle: () => void
+}
+
+// 展示聊天页顶部操作，并将侧边栏开关意图交给页面层协调。
+export function ChatHeader({ isSidebarOpen, onSidebarToggle }: ChatHeaderProps) {
   return (
     <header className={styles.header}>
       <div className={styles.left}>
         <button
           type="button"
           className={styles.iconButton}
+          aria-controls="chat-conversation-sidebar"
+          aria-expanded={isSidebarOpen}
           aria-label="切换侧边栏"
           title="切换侧边栏"
+          onClick={onSidebarToggle}
         >
           <PanelLeft size={18} />
         </button>
@@ -21,13 +30,8 @@ export function ChatHeader() {
       <div className={styles.brand}>
         <div className={styles.brandText}>
           <span className={styles.brandTitle}>问候</span>
-          <span className={styles.brandSubtitle}>仅本地演示 · API Key 会暴露</span>
+          <span className={styles.brandSubtitle}>AI生成可能会有误，注意核实</span>
         </div>
-      </div>
-      <div className={styles.right}>
-        <button type="button" className={styles.iconButton} aria-label="分享对话" title="分享对话">
-          <Share2 size={16} />
-        </button>
       </div>
     </header>
   )

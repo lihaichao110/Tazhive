@@ -1,4 +1,3 @@
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { App } from '@/app'
@@ -10,8 +9,4 @@ if (!rootElement) {
   throw new Error('应用挂载节点 #root 不存在')
 }
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+createRoot(rootElement).render(<App />)

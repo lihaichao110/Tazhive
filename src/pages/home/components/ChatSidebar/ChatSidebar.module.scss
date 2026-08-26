@@ -1,0 +1,98 @@
+.drawer {
+  --sidebar-surface: #ffffff;
+  --sidebar-surface-hover: #f5f5f5;
+  --sidebar-surface-selected: #eeeeee;
+  --sidebar-text-primary: #202124;
+  --sidebar-text-secondary: #666a70;
+  --sidebar-border: #e5e5e5;
+  --sidebar-focus: #555b65;
+}
+
+.drawerHeader {
+  min-height: 56px;
+  padding: 12px 8px !important;
+  border-bottom-color: var(--sidebar-border) !important;
+  
+  :global(.ant-drawer-title) {
+    color: var(--sidebar-text-primary);
+    font-size: 16px;
+    font-weight: 600;
+  }
+}
+
+.drawerBody {
+  padding: 10px 8px !important;
+  background: var(--sidebar-surface);
+}
+
+.conversationList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conversationButton {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  padding: 11px 12px;
+  overflow: hidden;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--sidebar-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: var(--sidebar-surface-hover);
+  }
+
+  &[aria-current='page'] {
+    background: var(--sidebar-surface-selected);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sidebar-focus);
+    outline-offset: -2px;
+  }
+}
+
+.conversationHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.conversationTitle,
+.conversationPreview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversationTitle {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.conversationTime {
+  flex: none;
+  color: var(--sidebar-text-secondary);
+  font-size: 11px;
+}
+
+.conversationPreview {
+  color: var(--sidebar-text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}

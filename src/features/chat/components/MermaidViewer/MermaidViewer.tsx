@@ -1,129 +1,149 @@
-import { useCallback, useEffect, useId, useState } from 'react'
-import { Code, Scan, Workflow } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Mermaid, type MermaidProps } from '@ant-design/x'
 
-import { useChartTransform } from '../../hooks/useChartTransform'
-import { renderMermaidDiagram } from '../../lib/renderMermaidDiagram'
 import styles from './MermaidViewer.module.scss'
 
 interface MermaidViewerProps {
   readonly source: string
 }
 
-// 将 Mermaid 源码异步渲染为可缩放画布，并支持在图形与源码视图间切换。
+type RenderView = 'image' | 'code'
+type RenderStatus = 'loading' | 'success' | 'error'
+
+// Mermaid 首次渲染存在初始化竞争（mermaid.initialize 与 renderDiagram 分属两个独立 effect，
+// 且 render 被 throttle 延迟），首次挂载时图表可能静默失败。
+// 此延迟用于在检测到 SVG 未出现后强制重新挂载组件，给 mermaid 一次全新的渲染机会。
+const RETRY_DELAY_MS = 2_000
+const RENDER_TIMEOUT_MS = 8_000
+
+const MERMAID_CONFIG: NonNullable<MermaidProps['config']> = {
+  startOnLoad: false,
+  securityLevel: 'strict',
+  theme: 'base',
+  themeVariables: {
+    background: '#ffffff',
+    primaryColor: '#eef2ff',
+    primaryBorderColor: '#818cf8',
+    primaryTextColor: '#1f2937',
+    secondaryColor: '#f5f3ff',
+    tertiaryColor: '#ecfeff',
+    lineColor: '#94a3b8',
+    textColor: '#1f2937',
+    fontFamily: "Inter, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif",
+  },
+}
+
+const MERMAID_CLASS_NAMES: NonNullable<MermaidProps['classNames']> = {
+  graph: styles.graph,
+  code: styles.code,
+}
+
+// 使用 Ant Design X 的标准交互渲染 Mermaid，并补充其未暴露的加载与失败状态。
 export function MermaidViewer({ source }: MermaidViewerProps) {
-  const [svg, setSvg] = useState<string | null>(null)
-  const [hasError, setHasError] = useState(false)
-  const [showCode, setShowCode] = useState(false)
-  const {
-    transform,
-    isInteracting,
-    resetTransform,
-    setCanvasRef,
-    handlePointerDown,
-    handlePointerMove,
-    handlePointerEnd,
-    handleKeyDown,
-  } = useChartTransform()
-  // useId 含冒号等字符，需清理成合法的 SVG 元素 id。
-  const chartId = `mermaid-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
+  const [renderType, setRenderType] = useState<RenderView>('image')
+  const [renderStatus, setRenderStatus] = useState<RenderStatus>('loading')
+  const [renderAttempt, setRenderAttempt] = useState(0)
+  const frameRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // source 更新时先清除旧结果，避免新图渲染期间短暂显示上一张图。
-    let isCancelled = false
-    setSvg(null)
-    setHasError(false)
-    void (async () => {
-      try {
-        const rendered = await renderMermaidDiagram(chartId, source)
-        if (!isCancelled) setSvg(rendered)
-      } catch {
-        // 渲染失败时给用户友好提示，不向上抛出异常。
-        if (!isCancelled) setHasError(true)
-      }
-    })()
-    return () => {
-      // Mermaid 渲染无法直接取消，用标记阻止卸载后或旧请求晚到时写入状态。
-      isCancelled = true
+    if (renderType === 'code') return
+
+    const graph = frameRef.current?.querySelector(`.${styles.graph}`)
+    if (!graph) {
+      setRenderStatus('error')
+      return
     }
-  }, [chartId, source])
 
-  const toggleCode = useCallback(() => {
-    setShowCode((prev) => !prev)
+    setRenderStatus('loading')
+    let timeoutId: number | undefined
+    let retryTimerId: number | undefined
+    let retried = false
+
+    // 官方组件没有渲染完成或失败回调，只能以非空 SVG 进入 DOM 作为成功信号。
+    const markRendered = (): boolean => {
+      const svg = graph.querySelector('svg')
+      if (!svg?.innerHTML.trim()) return false
+
+      setRenderStatus('success')
+      observer.disconnect()
+      clearTimers()
+      return true
+    }
+
+    const clearTimers = () => {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId)
+      if (retryTimerId !== undefined) window.clearTimeout(retryTimerId)
+    }
+
+    const observer = new MutationObserver(markRendered)
+    observer.observe(graph, { childList: true, subtree: true })
+
+    // 首次挂载时 mermaid.initialize 与 renderDiagram 分属两个独立 effect 且无同步保障，
+    // 加上 renderDiagram 被 throttle 延迟，SVG 可能静默渲染失败。
+    // 延迟后强制重新挂载 Mermaid 组件（通过 key 变化），此时初始化早已完成，渲染几乎必定成功。
+    if (!markRendered()) {
+      retryTimerId = window.setTimeout(() => {
+        if (!retried) {
+          retried = true
+          const svg = graph.querySelector('svg')
+          if (!svg?.innerHTML.trim()) {
+            setRenderAttempt((prev) => prev + 1)
+          }
+        }
+      }, RETRY_DELAY_MS)
+
+      timeoutId = window.setTimeout(() => {
+        observer.disconnect()
+        setRenderStatus('error')
+      }, RENDER_TIMEOUT_MS)
+    }
+
+    return () => {
+      observer.disconnect()
+      clearTimers()
+    }
+  }, [renderAttempt, renderType, source])
+
+  const handleRenderTypeChange = useCallback<NonNullable<MermaidProps['onRenderTypeChange']>>(
+    (nextRenderType) => {
+      setRenderType(nextRenderType === 'code' ? 'code' : 'image')
+    },
+    [],
+  )
+
+  const handleRetry = useCallback(() => {
+    setRenderStatus('loading')
+    setRenderAttempt((attempt) => attempt + 1)
   }, [])
-
-  const toggleViewLabel = showCode ? '查看图形' : '查看代码'
-
-  if (hasError) {
-    return (
-      <section className={styles.viewer} aria-label="Mermaid 图表">
-        <h2 className={styles.title}>Mermaid 图表</h2>
-        <p className={styles.error} role="alert">
-          图表加载失败，请刷新页面重试。
-        </p>
-      </section>
-    )
-  }
 
   return (
     <section className={styles.viewer} aria-label="Mermaid 图表">
-      <h2 className={styles.title}>Mermaid 图表</h2>
-      <div className={styles.frame}>
-        <div className={styles.toolbar} role="toolbar" aria-label="图表工具">
-          {!showCode ? (
-            <button
-              type="button"
-              className={styles.toolButton}
-              onClick={resetTransform}
-              aria-label="适配画布"
-              title="适配画布"
-            >
-              <Scan size={18} />
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className={`${styles.toolButton} ${showCode ? styles.toolButtonActive : ''}`}
-            onClick={toggleCode}
-            aria-label={toggleViewLabel}
-            aria-pressed={showCode}
-            title={toggleViewLabel}
-          >
-            {showCode ? <Workflow size={18} /> : <Code size={18} />}
-            <span>{toggleViewLabel}</span>
-          </button>
-        </div>
-        {showCode ? (
-          <pre className={styles.code} aria-label="Mermaid 源码">
-            <code>{source}</code>
-          </pre>
-        ) : (
-          <div
-            ref={setCanvasRef}
-            className={styles.canvas}
-            role="region"
-            tabIndex={0}
-            aria-label="可交互 Mermaid 图表：滚轮或双指缩放，拖动平移，按加号或减号缩放，按 0 复位"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerEnd}
-            onPointerCancel={handlePointerEnd}
-            onLostPointerCapture={handlePointerEnd}
-            onKeyDown={handleKeyDown}
-          >
-            {svg ? (
-              <div
-                className={isInteracting ? styles.chartInteracting : styles.chart}
-                style={{
-                  transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-                }}
-                // Mermaid 在 strict 模式下处理不可信源码，此处只注入其渲染结果。
-                dangerouslySetInnerHTML={{ __html: svg }}
-              />
+      <div ref={frameRef} className={styles.frame}>
+        <Mermaid
+          key={`${renderAttempt}-${source}`}
+          className={styles.mermaid}
+          classNames={MERMAID_CLASS_NAMES}
+          config={MERMAID_CONFIG}
+          onRenderTypeChange={handleRenderTypeChange}
+        >
+          {source}
+        </Mermaid>
+        {renderType === 'image' && renderStatus !== 'success' ? (
+          <div className={`${styles.status} ${renderStatus === 'error' ? styles.statusError : ''}`}>
+            {renderStatus === 'loading' ? (
+              <p role="status" aria-live="polite">
+                图表渲染中…
+              </p>
             ) : (
-              <p className={styles.loading}>图表渲染中…</p>
+              <div role="alert" className={styles.errorContent}>
+                <p>图表渲染失败，请检查源码或重新渲染。</p>
+                <button type="button" className={styles.retryButton} onClick={handleRetry}>
+                  重新渲染
+                </button>
+              </div>
             )}
           </div>
-        )}
+        ) : null}
       </div>
     </section>
   )

@@ -67,22 +67,6 @@
     }
   }
 
-  :global(pre) {
-    max-width: 100%;
-    padding: 12px;
-    border-radius: 6px;
-    background: var(--color-code-background);
-    overflow-x: auto;
-  }
-
-  :global(pre code) {
-    display: block;
-    padding: 0;
-    background: transparent;
-    font: 13px/1.55 var(--font-mono);
-    white-space: pre;
-  }
-
   :global(table) {
     display: block;
     max-width: 100%;

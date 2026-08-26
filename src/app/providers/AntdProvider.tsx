@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
-import { ConfigProvider } from 'antd'
+import { XProvider } from '@ant-design/x'
+import xZhCN from '@ant-design/x/locale/zh_CN'
+import zhCN from 'antd/locale/zh_CN'
 
 interface AntdProviderProps {
   readonly children: ReactNode
@@ -9,7 +11,8 @@ interface AntdProviderProps {
 // antd 暗色算法切换待后续统一接入（当前 Sender 在暗色下沿用浅色表单风格）。
 export function AntdProvider({ children }: AntdProviderProps) {
   return (
-    <ConfigProvider
+    <XProvider
+      locale={{ ...xZhCN, ...zhCN }}
       theme={{
         token: {
           // 与 _tokens.scss 中 --color-accent 浅色值保持一致。
@@ -20,6 +23,6 @@ export function AntdProvider({ children }: AntdProviderProps) {
       }}
     >
       {children}
-    </ConfigProvider>
+    </XProvider>
   )
 }

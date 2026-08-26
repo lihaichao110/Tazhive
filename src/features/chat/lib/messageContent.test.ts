@@ -8,6 +8,31 @@ describe('parseAssistantMessageContent', () => {
     expect(parseAssistantMessageContent('')).toEqual([])
   })
 
+  it('将未闭合的 think 协议段解析为正在思考的内容块', () => {
+    const rawContent = '\n\n<think>\n\n先分析问题，再寻找答案'
+
+    expect(parseAssistantMessageContent(rawContent)).toEqual([
+      { type: 'thinking', text: '先分析问题，再寻找答案', completed: false },
+    ])
+  })
+
+  it('将已完成的思考和最终回答按顺序拆分', () => {
+    const rawContent =
+      '\n\n<think status="done">\n\n分析完成\n\n</think>\n\n结论如下：\n```mermaid\ngraph LR\nA-->B\n```'
+
+    expect(parseAssistantMessageContent(rawContent)).toEqual([
+      { type: 'thinking', text: '分析完成', completed: true },
+      { type: 'text', text: '结论如下：\n' },
+      { type: 'mermaid', source: 'graph LR\nA-->B' },
+    ])
+  })
+
+  it('不将普通回答中间的 think 标签误判为协议段', () => {
+    const rawContent = '代码示例：`<think>内容</think>`'
+
+    expect(parseAssistantMessageContent(rawContent)).toEqual([{ type: 'text', text: rawContent }])
+  })
+
   it('按原始顺序拆分文本和 Mermaid 围栏', () => {
     const rawContent = '流程如下：\n```mermaid\nflowchart LR\nA --> B\n```\n完成。'
 
