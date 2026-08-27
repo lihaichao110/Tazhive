@@ -17,7 +17,8 @@
 // 因此 #root 不再使用定宽边框框架，改由各页面自行约束内容宽度。
 #root {
   width: 100%;
-  min-height: 100svh;
+  height: 100%;
+  overflow: hidden;
 }
 
 h1,

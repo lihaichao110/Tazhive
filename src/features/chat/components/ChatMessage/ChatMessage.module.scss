@@ -3,6 +3,19 @@
   justify-content: flex-end;
 }
 
+.userMessage {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 75%;
+  margin-left: auto;
+
+  @media (width <= 640px) {
+    max-width: 85%;
+  }
+}
+
 .assistantRow {
   display: flex;
   align-items: flex-start;

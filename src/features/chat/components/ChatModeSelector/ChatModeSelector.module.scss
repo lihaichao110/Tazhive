@@ -56,9 +56,8 @@
     background: var(--color-surface-hover, #efefef);
   }
 
-  :global(.ant-dropdown-menu-item-selected),
-  :global(.ant-dropdown-menu-item-selected:hover) {
-    background: var(--color-surface-selected, #fafafa);
+  :global(.ant-dropdown-menu-item-selected) {
+    background-color: var(--color-surface-selected) !important;
   }
 }
 

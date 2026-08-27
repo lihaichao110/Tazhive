@@ -1,0 +1,25 @@
+.card {
+  width: 100%;
+  padding: 8px 10px;
+  border-left: 3px solid var(--color-accent);
+  border-radius: 6px;
+  background: var(--color-accent-background);
+  color: var(--color-text-primary);
+  text-align: left;
+}
+
+.source {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.text {
+  margin: 0;
+  overflow-wrap: break-word;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}

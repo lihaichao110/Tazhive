@@ -57,21 +57,22 @@ function renderContent(
           : STREAMING_FINISHED
 
         return (
-          <XMarkdown
-            key={`text-${index}`}
-            className={styles.assistantMarkdown}
-            components={MARKDOWN_CODE_COMPONENTS}
-            content={content.text}
-            disableDefaultStyles={['pre', 'code']}
-            escapeRawHtml
-            openLinksInNewTab
-            streaming={streaming}
-          />
+          <div key={`text-${index}`} className={styles.quotableText} data-quotable-text>
+            <XMarkdown
+              className={styles.assistantMarkdown}
+              components={MARKDOWN_CODE_COMPONENTS}
+              content={content.text}
+              disableDefaultStyles={['pre', 'code']}
+              escapeRawHtml
+              openLinksInNewTab
+              streaming={streaming}
+            />
+          </div>
         )
       }
 
       return (
-        <p key={`text-${index}`} className={styles.userBubble}>
+        <p key={`text-${index}`} className={styles.userBubble} data-quotable-text>
           {content.text}
         </p>
       )

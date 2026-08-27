@@ -13,7 +13,7 @@ import {
 } from '../lib/messageContent'
 import { INITIAL_MESSAGES } from '../model/initialMessages'
 import { DEFAULT_CHAT_MODE, toDeepSeekThinking } from '../model/chatMode'
-import type { ChatMessage, ChatMessageStatus } from '../model/types'
+import type { ChatMessage, ChatMessageStatus, ChatQuote } from '../model/types'
 
 import { readDeepSeekConfig } from '@/shared/config'
 
@@ -44,6 +44,7 @@ function toChatMessage(info: MessageInfo<DeepSeekMessage>): ChatMessage {
         ? parseAssistantMessageContent(info.message.content)
         : createTextMessageContent(info.message.content),
     status: info.status as ChatMessageStatus,
+    quote: info.message.quote,
   }
 }
 
@@ -101,7 +102,7 @@ export function useChat() {
   }, [isRequesting])
 
   const send = useCallback(
-    (rawText: string): boolean => {
+    (rawText: string, quote?: ChatQuote): boolean => {
       const content = rawText.trim()
       if (!content || requestInFlightRef.current) return false
       if (!provider) {
@@ -115,7 +116,10 @@ export function useChat() {
       setMessages((current) =>
         current.filter((info) => info.status !== 'error' && info.status !== 'abort'),
       )
-      onRequest({ messages: [{ role: 'user', content }], thinking: toDeepSeekThinking(mode) })
+      onRequest({
+        messages: [{ role: 'user', content, quote }],
+        thinking: toDeepSeekThinking(mode),
+      })
       return true
     },
     [mode, onRequest, provider, setMessages],
@@ -146,7 +150,10 @@ export function useChat() {
       )
       requestInFlightRef.current = true
       setRequestError(null)
-      onRequest({ messages: [{ role: 'user', content }], thinking: toDeepSeekThinking(mode) })
+      onRequest({
+        messages: [{ role: 'user', content, quote: previousUser.message.quote }],
+        thinking: toDeepSeekThinking(mode),
+      })
     },
     [mode, onRequest, provider, sdkMessages, setMessages],
   )

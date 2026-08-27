@@ -2,7 +2,7 @@
   // 对话页专属设计令牌：作用域限定在页面容器内，避免污染全局主题。
   --color-surface: #ffffff;
   --color-surface-muted: #f5f5f5;
-  --color-surface-selected: #fafafa;
+  --color-surface-selected: #def1e6;
   --color-surface-hover: #efefef;
   --color-text-primary: #202124;
   --color-text-secondary: #666a70;
@@ -17,7 +17,9 @@
 
   display: flex;
   flex-direction: column;
+  height: 100%;
   height: 100dvh;
+  overflow: hidden;
   background: var(--color-surface);
   color: var(--color-text-primary);
   font-family: var(--font-chat);
@@ -32,6 +34,7 @@
 .scrollArea {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   overflow-y: auto;
   // 顶部导航与底部输入区固定可见，滚动限制在对话区内部。
   overscroll-behavior: contain;

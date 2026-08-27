@@ -24,6 +24,60 @@
   }
 }
 
+.quoteHeader {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.quoteHeaderTitle {
+  padding: 8px 12px 4px;
+}
+
+.quoteHeaderContent {
+  padding: 0 12px 9px;
+}
+
+.quoteTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.quoteClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text-primary);
+  }
+}
+
+.quoteText {
+  max-height: 96px;
+  margin: 0;
+  padding-left: 9px;
+  border-left: 3px solid var(--color-accent);
+  overflow-y: auto;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
 .toolbar {
   display: flex;
   align-items: center;

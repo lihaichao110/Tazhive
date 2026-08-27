@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { DeepSeekChatProvider, XRequest, XStream, type SSEOutput } from '@ant-design/x-sdk'
 
-import type { DeepSeekMessage, DeepSeekRequestParams } from './deepSeekProvider'
+import {
+  createDeepSeekProvider,
+  type DeepSeekMessage,
+  type DeepSeekRequestParams,
+} from './deepSeekProvider'
 
 // 按指定字节位置切分响应，模拟中文字符和 SSE 事件跨网络分片到达的情况。
 function createByteStream(
@@ -72,6 +76,30 @@ describe('DeepSeek SSE 流', () => {
     })
 
     expect(second).toEqual({ role: 'assistant', content: '你好' })
+  })
+
+  it('请求前序列化引用并移除界面元数据', () => {
+    const provider = createDeepSeekProvider(
+      { apiKey: 'test-key', baseUrl: 'https://example.com', modelName: 'deepseek-chat' },
+      { onError: () => undefined, onSuccess: () => undefined },
+    )
+    provider.injectGetMessages(() => [
+      {
+        role: 'user',
+        content: '请展开说明',
+        quote: { messageId: 'assistant-1', role: 'assistant', text: '关键结论' },
+      },
+    ])
+
+    const params = provider.transformParams({}, provider.request.options)
+
+    expect(params.messages).toEqual([
+      {
+        role: 'user',
+        content: '引用（来自AI 回答）：\n\n> 关键结论\n\n我的问题：\n请展开说明',
+      },
+    ])
+    expect(params.messages?.[0]).not.toHaveProperty('quote')
   })
 
   it('HTTP 错误通过 onError 返回', async () => {

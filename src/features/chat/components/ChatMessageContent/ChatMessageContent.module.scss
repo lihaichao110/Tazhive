@@ -9,17 +9,17 @@
   line-height: 1.5;
 }
 
+.quotableText {
+  display: contents;
+}
+
 .userBubble {
-  max-width: 75%;
+  max-width: 100%;
   color: #fff;
   // 固定使用浅色模式的深绿，避免暗色令牌的亮绿背景降低白字对比度。
   background-color: #028550;
   text-align: right;
   white-space: pre-wrap;
-
-  @media (width <= 640px) {
-    max-width: 85%;
-  }
 }
 
 .assistantMarkdown {

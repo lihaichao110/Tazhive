@@ -4,6 +4,12 @@ export type ChatMode = 'fast' | 'deep'
 
 export type ChatMessageStatus = 'local' | 'loading' | 'updating' | 'success' | 'error' | 'abort'
 
+export interface ChatQuote {
+  readonly messageId: string
+  readonly role: ChatRole
+  readonly text: string
+}
+
 export interface TextMessageContent {
   readonly type: 'text'
   readonly text: string
@@ -27,4 +33,5 @@ export interface ChatMessage {
   readonly role: ChatRole
   readonly content: readonly ChatMessageContent[]
   readonly status: ChatMessageStatus
+  readonly quote?: ChatQuote
 }
