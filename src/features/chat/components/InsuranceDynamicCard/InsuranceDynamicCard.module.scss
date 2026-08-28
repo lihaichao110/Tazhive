@@ -1,0 +1,31 @@
+.card {
+  width: min(100%, 480px);
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-background);
+  box-shadow: var(--shadow-interactive);
+
+  :global(.ant-form-item) {
+    margin-bottom: 16px;
+  }
+
+  :global(.ant-input:focus-visible) {
+    outline: none;
+    box-shadow: none;
+  }
+}
+
+.title {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.description {
+  margin: 6px 0 18px;
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 1.5;
+}

@@ -1,3 +1,5 @@
+import type { XAgentCommand_v0_9 } from '@ant-design/x-card'
+
 export type ChatRole = 'user' | 'assistant'
 
 export type ChatMode = 'fast' | 'deep'
@@ -26,7 +28,32 @@ export interface MermaidMessageContent {
   readonly source: string
 }
 
-export type ChatMessageContent = TextMessageContent | ThinkingMessageContent | MermaidMessageContent
+export interface DynamicCardMessageContent {
+  readonly type: 'dynamic-card'
+  readonly surfaceId: string
+  readonly commands: readonly XAgentCommand_v0_9[]
+}
+
+export interface DynamicCardErrorMessageContent {
+  readonly type: 'dynamic-card-error'
+  readonly message: string
+}
+
+export interface InsuranceSubmission {
+  readonly name: string
+  readonly birthDate: string
+  readonly gender: 'male' | 'female'
+  readonly phone: string
+}
+
+export type DynamicCardReadyHandler = (surfaceId: string, element: HTMLElement) => void
+
+export type ChatMessageContent =
+  | TextMessageContent
+  | ThinkingMessageContent
+  | MermaidMessageContent
+  | DynamicCardMessageContent
+  | DynamicCardErrorMessageContent
 
 export interface ChatMessage {
   readonly id: string

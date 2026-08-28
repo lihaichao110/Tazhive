@@ -1,4 +1,9 @@
-import type { ChatMessage as ChatMessageModel, ChatQuote } from '../../model/types'
+import type {
+  ChatMessage as ChatMessageModel,
+  ChatQuote,
+  DynamicCardReadyHandler,
+  InsuranceSubmission,
+} from '../../model/types'
 import { ChatMessageContent } from '../ChatMessageContent/ChatMessageContent'
 import { MessageSelectionActions } from '../MessageSelectionActions/MessageSelectionActions'
 import { QuoteCard } from '../QuoteCard/QuoteCard'
@@ -6,12 +11,20 @@ import styles from './ChatMessage.module.scss'
 
 interface ChatMessageProps {
   readonly message: ChatMessageModel
+  readonly onDynamicCardReady?: DynamicCardReadyHandler
   readonly onRetry: (messageId: string) => void
   readonly onQuoteSelect: (quote: ChatQuote) => void
+  readonly onInsuranceSubmit?: (submission: InsuranceSubmission) => void
 }
 
 // 根据消息角色与请求状态选择布局，并为失败的助手消息提供原位重试入口。
-export function ChatMessage({ message, onRetry, onQuoteSelect }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  onDynamicCardReady,
+  onInsuranceSubmit,
+  onRetry,
+  onQuoteSelect,
+}: ChatMessageProps) {
   // AI 消息靠左、以普通文本展示；用户消息靠右、使用浅灰气泡。
   if (message.role === 'assistant') {
     return (
@@ -24,8 +37,10 @@ export function ChatMessage({ message, onRetry, onQuoteSelect }: ChatMessageProp
         >
           <ChatMessageContent
             content={message.content}
+            onDynamicCardReady={onDynamicCardReady}
             role={message.role}
             status={message.status}
+            onInsuranceSubmit={onInsuranceSubmit}
           />
         </MessageSelectionActions>
         {message.status === 'error' ? (
@@ -49,8 +64,10 @@ export function ChatMessage({ message, onRetry, onQuoteSelect }: ChatMessageProp
           {message.quote ? <QuoteCard quote={message.quote} /> : null}
           <ChatMessageContent
             content={message.content}
+            onDynamicCardReady={onDynamicCardReady}
             role={message.role}
             status={message.status}
+            onInsuranceSubmit={onInsuranceSubmit}
           />
         </div>
       </MessageSelectionActions>

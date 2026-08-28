@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { createInsuranceMockReply } from '../model/insuranceCard'
 import { parseAssistantMessageContent } from './messageContent'
 
 describe('parseAssistantMessageContent', () => {
@@ -67,6 +68,27 @@ describe('parseAssistantMessageContent', () => {
     expect(parseAssistantMessageContent(rawContent)).toEqual([
       { type: 'text', text: `${emptyFence}\n` },
       { type: 'mermaid', source: 'graph LR\nA-->B' },
+    ])
+  })
+
+  it('将合法的 A2UI v0.9 围栏解析为动态卡片', () => {
+    const content = parseAssistantMessageContent(createInsuranceMockReply('insurance-test'))
+
+    expect(content).toHaveLength(1)
+    expect(content[0]).toMatchObject({
+      type: 'dynamic-card',
+      surfaceId: 'insurance-test',
+      commands: expect.arrayContaining([expect.objectContaining({ version: 'v0.9' })]),
+    })
+  })
+
+  it.each([
+    '```a2ui\n{broken}\n```',
+    '```a2ui\n{"surfaceId":"bad","commands":[{"version":"v0.8"}]}\n```',
+    '```a2ui\n{"surfaceId":"bad","commands":[{"version":"v0.9","updateComponents":{"surfaceId":"bad","components":[{"id":"root","component":"Script"}]}}]}\n```',
+  ])('非法或越权的 A2UI 数据安全降级', (rawContent) => {
+    expect(parseAssistantMessageContent(rawContent)).toEqual([
+      { type: 'dynamic-card-error', message: '表单暂时无法加载，请稍后重试。' },
     ])
   })
 })

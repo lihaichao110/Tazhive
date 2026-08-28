@@ -1,29 +1,105 @@
-import type { ChatMessageContent } from '../model/types'
+import type { XAgentCommand_v0_9 } from '@ant-design/x-card'
 
-// 仅识别带换行且已闭合的 Mermaid 围栏，避免把普通行内代码误判为图表。
-const MERMAID_FENCE_PATTERN = /```[\t ]*mermaid[\t ]*\r?\n([\s\S]*?)```/gi
+import { INSURANCE_CATALOG_ID } from '../model/insuranceCard'
+import type { ChatMessageContent, DynamicCardMessageContent } from '../model/types'
+
+// 只识别带换行且已闭合的结构化围栏，流式阶段的半包仍按普通文本展示。
+const STRUCTURED_FENCE_PATTERN = /```[\t ]*(mermaid|a2ui)[\t ]*\r?\n([\s\S]*?)```/gi
 const THINK_OPEN_PATTERN = /^(?:\r?\n){0,2}<think(?:\s+status=["']done["'])?\s*>/i
 const THINK_CLOSE_TAG = '</think>'
+const CARD_LOAD_ERROR = '表单暂时无法加载，请稍后重试。'
+const ALLOWED_INSURANCE_COMPONENTS = new Set([
+  'InsuranceForm',
+  'Text',
+  'TextField',
+  'DateField',
+  'GenderField',
+  'SubmitButton',
+])
 
 // 空字符串不生成内容块，防止页面渲染无意义的空段落。
 function toTextContent(text: string): ChatMessageContent[] {
   return text ? [{ type: 'text', text }] : []
 }
 
-// 按原始顺序将普通回复拆成文本与 Mermaid 块。
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isAllowedComponent(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.component === 'string' &&
+    ALLOWED_INSURANCE_COMPONENTS.has(value.component)
+  )
+}
+
+// 每条命令只能包含一种操作，且只能作用于当前消息声明的 Surface。
+function isValidCardCommand(command: unknown, surfaceId: string): boolean {
+  if (!isRecord(command) || command.version !== 'v0.9') return false
+  const commandKeys = [
+    'createSurface',
+    'updateComponents',
+    'updateDataModel',
+    'deleteSurface',
+  ].filter((key) => key in command)
+  if (commandKeys.length !== 1) return false
+
+  const commandKey = commandKeys[0]
+  if (!commandKey) return false
+  const payload = command[commandKey]
+  if (!isRecord(payload) || payload.surfaceId !== surfaceId) return false
+  if (commandKey === 'createSurface') return payload.catalogId === INSURANCE_CATALOG_ID
+  if (commandKey === 'updateComponents') {
+    return Array.isArray(payload.components) && payload.components.every(isAllowedComponent)
+  }
+  if (commandKey === 'updateDataModel') return typeof payload.path === 'string'
+  return true
+}
+
+// 校验表单消息的协议版本、Surface 归属和组件白名单，阻止任意组件注入。
+function parseDynamicCard(source: string): DynamicCardMessageContent | null {
+  try {
+    const envelope: unknown = JSON.parse(source)
+    if (!isRecord(envelope) || typeof envelope.surfaceId !== 'string' || !envelope.surfaceId) {
+      return null
+    }
+    const surfaceId = envelope.surfaceId
+    if (!Array.isArray(envelope.commands) || envelope.commands.length === 0) return null
+    if (!envelope.commands.every((command) => isValidCardCommand(command, surfaceId))) {
+      return null
+    }
+
+    return {
+      type: 'dynamic-card',
+      surfaceId,
+      commands: envelope.commands as XAgentCommand_v0_9[],
+    }
+  } catch {
+    return null
+  }
+}
+
+// 按原始顺序将普通回复拆成文本、Mermaid 与受控 A2UI 卡片。
 function parseAnswerContent(rawContent: string): ChatMessageContent[] {
   const content: ChatMessageContent[] = []
   let textStart = 0
 
-  for (const match of rawContent.matchAll(MERMAID_FENCE_PATTERN)) {
+  for (const match of rawContent.matchAll(STRUCTURED_FENCE_PATTERN)) {
     const matchIndex = match.index
-    const source = match[1]?.trim()
-    // 空图表不推进游标，使该围栏最终仍作为原始文本展示，避免静默吞掉回复内容。
+    const language = match[1]?.toLowerCase()
+    const source = match[2]?.trim()
+    // 空图表不推进游标，使该围栏最终仍按原始文本展示。
     if (matchIndex === undefined || !source) continue
 
     const precedingText = rawContent.slice(textStart, matchIndex)
     if (precedingText) content.push({ type: 'text', text: precedingText })
-    content.push({ type: 'mermaid', source })
+    if (language === 'mermaid') {
+      content.push({ type: 'mermaid', source })
+    } else {
+      const card = parseDynamicCard(source)
+      content.push(card ?? { type: 'dynamic-card-error', message: CARD_LOAD_ERROR })
+    }
     textStart = matchIndex + match[0].length
   }
 
@@ -82,6 +158,13 @@ export function serializeMessageContent(content: readonly ChatMessageContent[]):
           }`
         case 'mermaid':
           return `\`\`\`mermaid\n${block.source}\n\`\`\``
+        case 'dynamic-card':
+          return `\`\`\`a2ui\n${JSON.stringify({
+            surfaceId: block.surfaceId,
+            commands: block.commands,
+          })}\n\`\`\``
+        case 'dynamic-card-error':
+          return block.message
       }
     })
     .join('')

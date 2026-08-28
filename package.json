@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@ant-design/x": "^2.9.0",
+    "@ant-design/x-card": "^2.9.0",
     "@ant-design/x-markdown": "^2.9.0",
     "@ant-design/x-sdk": "2.9.0",
     "@panzoom/panzoom": "4.6.2",

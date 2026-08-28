@@ -11,9 +11,14 @@ import {
   parseAssistantMessageContent,
   serializeMessageContent,
 } from '../lib/messageContent'
+import {
+  createInsuranceConfirmationMessage,
+  createInsuranceConversationMessages,
+} from '../lib/insuranceMessages'
 import { INITIAL_MESSAGES } from '../model/initialMessages'
 import { DEFAULT_CHAT_MODE, toDeepSeekThinking } from '../model/chatMode'
-import type { ChatMessage, ChatMessageStatus, ChatQuote } from '../model/types'
+import { isInsuranceIntent } from '../model/insuranceCard'
+import type { ChatMessage, ChatMessageStatus, ChatQuote, InsuranceSubmission } from '../model/types'
 
 import { readDeepSeekConfig } from '@/shared/config'
 
@@ -105,6 +110,14 @@ export function useChat() {
     (rawText: string, quote?: ChatQuote): boolean => {
       const content = rawText.trim()
       if (!content || requestInFlightRef.current) return false
+      if (isInsuranceIntent(content)) {
+        setRequestError(null)
+        setMessages((current) => [
+          ...current,
+          ...createInsuranceConversationMessages(content, quote),
+        ])
+        return true
+      }
       if (!provider) {
         setRequestError(DEEPSEEK_CONFIG_RESULT.error)
         return false
@@ -123,6 +136,13 @@ export function useChat() {
       return true
     },
     [mode, onRequest, provider, setMessages],
+  )
+
+  const submitInsurance = useCallback(
+    (submission: InsuranceSubmission): void => {
+      setMessages((current) => [...current, createInsuranceConfirmationMessage(submission)])
+    },
+    [setMessages],
   )
 
   const abort = useCallback(() => {
@@ -167,5 +187,6 @@ export function useChat() {
     send,
     abort,
     retry,
+    submitInsurance,
   }
 }

@@ -9,6 +9,16 @@
   line-height: 1.5;
 }
 
+.cardError {
+  width: fit-content;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #ffccc7;
+  border-radius: 8px;
+  color: #a8071a;
+  background: #fff2f0;
+}
+
 .quotableText {
   display: contents;
 }
@@ -18,7 +28,6 @@
   color: #fff;
   // 固定使用浅色模式的深绿，避免暗色令牌的亮绿背景降低白字对比度。
   background-color: #028550;
-  text-align: right;
   white-space: pre-wrap;
 }
 
