@@ -1,12 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { XCard, type ActionPayload } from '@ant-design/x-card'
 
-import type {
-  DynamicCardMessageContent,
-  DynamicCardReadyHandler,
-  InsuranceSubmission,
-} from '../../model/types'
+import type { DynamicCardMessageContent, InsuranceSubmission } from '../../model/types'
 import { isValidInsuranceSubmission } from '../../model/insuranceValidation'
+import { useChatSessionActions } from '../../providers/useChatSession'
+import { useDynamicCardHost } from '../../providers/useDynamicCardHost'
 import {
   InsuranceDateField,
   InsuranceForm,
@@ -19,8 +17,6 @@ import './insuranceCatalog'
 
 interface InsuranceDynamicCardProps {
   readonly card: DynamicCardMessageContent
-  readonly onReady?: DynamicCardReadyHandler
-  readonly onSubmit: (submission: InsuranceSubmission) => void
 }
 
 const COMPONENTS = {
@@ -52,19 +48,21 @@ function isInsuranceSubmission(value: unknown): value is InsuranceSubmission {
 }
 
 // 承接 XCard Action 边界，只把完整且合法的投保信息交给聊天业务层。
-export function InsuranceDynamicCard({ card, onReady, onSubmit }: InsuranceDynamicCardProps) {
+export function InsuranceDynamicCard({ card }: InsuranceDynamicCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
+  const { submitInsurance } = useChatSessionActions()
+  const onReady = useDynamicCardHost()
 
   // 卡片完成首次挂载后只上报定位元素，具体滚动策略由页面层统一决定。
   useEffect(() => {
     const element = cardRef.current
-    if (element) onReady?.(card.surfaceId, element)
+    if (element) onReady(card.surfaceId, element)
   }, [card.surfaceId, onReady])
 
   const handleAction = (payload: ActionPayload): void => {
     const insurance = payload.context.insurance
     if (payload.name === 'insurance.submit' && isInsuranceSubmission(insurance)) {
-      onSubmit(insurance)
+      submitInsurance(insurance)
     }
   }
 

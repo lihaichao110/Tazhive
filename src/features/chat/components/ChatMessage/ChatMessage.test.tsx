@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 import type { XMarkdownProps } from '@ant-design/x-markdown'
 
+import { ChatSessionTestProvider } from '../../providers/chatSessionTestUtils'
 import { ChatMessage } from './ChatMessage'
 
 vi.mock('@ant-design/x-markdown', () => ({
@@ -12,17 +13,17 @@ vi.mock('@ant-design/x-markdown', () => ({
 describe('ChatMessage', () => {
   it('将引用卡片和问题正文一起展示在用户消息中', () => {
     const markup = renderToStaticMarkup(
-      <ChatMessage
-        message={{
-          id: 'user-2',
-          role: 'user',
-          content: [{ type: 'text', text: '为什么？' }],
-          quote: { messageId: 'assistant-1', role: 'assistant', text: '被引用的回答' },
-          status: 'local',
-        }}
-        onQuoteSelect={() => undefined}
-        onRetry={() => undefined}
-      />,
+      <ChatSessionTestProvider>
+        <ChatMessage
+          message={{
+            id: 'user-2',
+            role: 'user',
+            content: [{ type: 'text', text: '为什么？' }],
+            quote: { messageId: 'assistant-1', role: 'assistant', text: '被引用的回答' },
+            status: 'local',
+          }}
+        />
+      </ChatSessionTestProvider>,
     )
 
     expect(markup).toContain('引用 AI 回答')
@@ -32,16 +33,16 @@ describe('ChatMessage', () => {
 
   it('普通用户消息不渲染引用卡片', () => {
     const markup = renderToStaticMarkup(
-      <ChatMessage
-        message={{
-          id: 'user-1',
-          role: 'user',
-          content: [{ type: 'text', text: '普通问题' }],
-          status: 'local',
-        }}
-        onQuoteSelect={() => undefined}
-        onRetry={() => undefined}
-      />,
+      <ChatSessionTestProvider>
+        <ChatMessage
+          message={{
+            id: 'user-1',
+            role: 'user',
+            content: [{ type: 'text', text: '普通问题' }],
+            status: 'local',
+          }}
+        />
+      </ChatSessionTestProvider>,
     )
 
     expect(markup).toContain('普通问题')

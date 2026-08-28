@@ -2,6 +2,7 @@ import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { vi } from 'vitest'
 
+import { ChatSessionTestProvider } from '../../providers/chatSessionTestUtils'
 import { MessageSelectionActions } from './MessageSelectionActions'
 
 interface SelectionState {
@@ -31,14 +32,11 @@ export function renderSelectionActions(children?: ReactNode): SelectionActionsRe
   document.body.append(host)
   act(() => {
     root.render(
-      <MessageSelectionActions
-        enabled
-        messageId="assistant-1"
-        role="assistant"
-        onQuoteSelect={onQuoteSelect}
-      >
-        {children ?? <p data-quotable-text>移动端选区内容</p>}
-      </MessageSelectionActions>,
+      <ChatSessionTestProvider value={{ selectQuote: onQuoteSelect }}>
+        <MessageSelectionActions enabled messageId="assistant-1" role="assistant">
+          {children ?? <p data-quotable-text>移动端选区内容</p>}
+        </MessageSelectionActions>
+      </ChatSessionTestProvider>,
     )
   })
 

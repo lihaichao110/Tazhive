@@ -8,13 +8,13 @@ import { useTouchActivation } from './useTouchActivation'
 import styles from './MessageSelectionActions.module.scss'
 
 import type { ChatQuote, ChatRole } from '../../model/types'
+import { useChatSessionActions } from '../../providers/useChatSession'
 
 interface MessageSelectionActionsProps {
   readonly children: ReactNode
   readonly enabled: boolean
   readonly messageId: string
   readonly role: ChatRole
-  readonly onQuoteSelect: (quote: ChatQuote) => void
 }
 
 interface ToolbarPosition {
@@ -60,8 +60,8 @@ export function MessageSelectionActions({
   enabled,
   messageId,
   role,
-  onQuoteSelect,
 }: MessageSelectionActionsProps) {
+  const { selectQuote } = useChatSessionActions()
   const containerRef = useRef<HTMLDivElement>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
   const selectionTimerRef = useRef<number>(undefined)
@@ -195,8 +195,9 @@ export function MessageSelectionActions({
   const handleQuote = useCallback(() => {
     window.getSelection()?.removeAllRanges()
     closeToolbar()
-    onQuoteSelect({ messageId, role, text: selectedText })
-  }, [closeToolbar, messageId, onQuoteSelect, role, selectedText])
+    const quote: ChatQuote = { messageId, role, text: selectedText }
+    selectQuote(quote)
+  }, [closeToolbar, messageId, role, selectQuote, selectedText])
   const copyActivation = useTouchActivation(handleCopy, releaseToolbarInteraction)
   const quoteActivation = useTouchActivation(handleQuote, releaseToolbarInteraction)
 

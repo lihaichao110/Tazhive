@@ -5,8 +5,6 @@ import type {
   ChatMessageContent as MessageContent,
   ChatMessageStatus,
   ChatRole,
-  DynamicCardReadyHandler,
-  InsuranceSubmission,
 } from '../../model/types'
 import { InsuranceDynamicCard } from '../InsuranceDynamicCard/InsuranceDynamicCard'
 import { MARKDOWN_CODE_COMPONENTS } from '../MarkdownCode/markdownCodeComponents'
@@ -22,10 +20,8 @@ const MermaidViewer = lazy(async () => {
 
 interface ChatMessageContentProps {
   readonly content: readonly MessageContent[]
-  readonly onDynamicCardReady?: DynamicCardReadyHandler
   readonly role: ChatRole
   readonly status: ChatMessageStatus
-  readonly onInsuranceSubmit?: (submission: InsuranceSubmission) => void
 }
 
 const STREAMING_ACTIVE = { hasNextChunk: true } as const
@@ -53,8 +49,6 @@ function renderContent(
   status: ChatMessageStatus,
   index: number,
   lastIndex: number,
-  onDynamicCardReady?: DynamicCardReadyHandler,
-  onInsuranceSubmit?: (submission: InsuranceSubmission) => void,
 ): ReactNode {
   switch (content.type) {
     case 'text': {
@@ -103,14 +97,7 @@ function renderContent(
         />
       )
     case 'dynamic-card':
-      return onInsuranceSubmit ? (
-        <InsuranceDynamicCard
-          key={`dynamic-card-${content.surfaceId}`}
-          card={content}
-          onReady={onDynamicCardReady}
-          onSubmit={onInsuranceSubmit}
-        />
-      ) : null
+      return <InsuranceDynamicCard key={`dynamic-card-${content.surfaceId}`} card={content} />
     case 'dynamic-card-error':
       return (
         <p key={`dynamic-card-error-${index}`} className={styles.cardError} role="alert">
@@ -123,23 +110,7 @@ function renderContent(
 }
 
 // 渲染一条消息中的结构化内容块，助手文本支持安全的流式 Markdown 展示。
-export function ChatMessageContent({
-  content,
-  onDynamicCardReady,
-  onInsuranceSubmit,
-  role,
-  status,
-}: ChatMessageContentProps) {
+export function ChatMessageContent({ content, role, status }: ChatMessageContentProps) {
   const lastIndex = content.length - 1
-  return content.map((block, index) =>
-    renderContent(
-      block,
-      role,
-      status,
-      index,
-      lastIndex,
-      onDynamicCardReady,
-      onInsuranceSubmit,
-    ),
-  )
+  return content.map((block, index) => renderContent(block, role, status, index, lastIndex))
 }

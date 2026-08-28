@@ -5,37 +5,19 @@ import { LayoutGrid, Plus, X } from 'lucide-react'
 import styles from './ChatComposer.module.scss'
 import { ChatModeSelector } from '../ChatModeSelector/ChatModeSelector'
 
-import type { ChatMode, ChatQuote } from '../../model/types'
-
-interface ChatComposerProps {
-  readonly isReplying: boolean
-  readonly mode: ChatMode
-  readonly quote: ChatQuote | null
-  readonly onCancel: () => void
-  readonly onModeChange: (mode: ChatMode) => void
-  readonly onQuoteClear: () => void
-  readonly onSend: (text: string, quote?: ChatQuote) => boolean
-}
+import { useChatSession } from '../../providers/useChatSession'
 
 // 底部工具行：左侧为自定义工具按钮，右侧为 Sender 默认的语音与发送按钮。
-function ComposerFooter({
-  actionNode,
-  isReplying,
-  mode,
-  onModeChange,
-}: {
-  readonly actionNode: ReactNode
-  readonly isReplying: boolean
-  readonly mode: ChatMode
-  readonly onModeChange: (mode: ChatMode) => void
-}) {
+function ComposerFooter({ actionNode }: { readonly actionNode: ReactNode }) {
+  const { isReplying, mode, setMode } = useChatSession()
+
   return (
     <div className={styles.toolbar}>
       <div className={styles.toolbarLeft}>
         <button type="button" className={styles.toolButton} aria-label="添加附件" title="添加附件">
           <Plus size={16} />
         </button>
-        <ChatModeSelector disabled={isReplying} mode={mode} onChange={onModeChange} />
+        <ChatModeSelector disabled={isReplying} mode={mode} onChange={setMode} />
         <button type="button" className={styles.toolButton} aria-label="更多操作" title="更多">
           <LayoutGrid size={16} />
           <span className={styles.toolLabel}>更多</span>
@@ -47,27 +29,13 @@ function ComposerFooter({
 }
 
 // 管理输入草稿、引用展示，并将发送与取消动作交给会话 Hook 处理。
-export function ChatComposer({
-  isReplying,
-  mode,
-  quote,
-  onCancel,
-  onModeChange,
-  onQuoteClear,
-  onSend,
-}: ChatComposerProps) {
+export function ChatComposer() {
+  const { abort, clearQuote, isReplying, quote, sendMessage } = useChatSession()
   const [value, setValue] = useState('')
 
   const renderFooter = useCallback(
-    (actionNode: ReactNode) => (
-      <ComposerFooter
-        actionNode={actionNode}
-        isReplying={isReplying}
-        mode={mode}
-        onModeChange={onModeChange}
-      />
-    ),
-    [isReplying, mode, onModeChange],
+    (actionNode: ReactNode) => <ComposerFooter actionNode={actionNode} />,
+    [],
   )
 
   const handleSubmit = useCallback(
@@ -76,12 +44,11 @@ export function ChatComposer({
       // Sender 空值时禁用发送，这里兜底纯空白内容。
       if (!text) return
       // 配置缺失或请求被拒绝时保留草稿，便于用户修复问题后重新发送。
-      if (onSend(text, quote ?? undefined)) {
+      if (sendMessage(text)) {
         setValue('')
-        onQuoteClear()
       }
     },
-    [onQuoteClear, onSend, quote],
+    [sendMessage],
   )
 
   const quoteSource = quote?.role === 'assistant' ? '引用 AI 回答' : '引用你的问题'
@@ -98,7 +65,7 @@ export function ChatComposer({
             type="button"
             className={styles.quoteClose}
             aria-label="移除引用"
-            onClick={onQuoteClear}
+            onClick={clearQuote}
           >
             <X size={15} aria-hidden="true" />
           </button>
@@ -114,7 +81,7 @@ export function ChatComposer({
       value={value}
       onChange={setValue}
       onSubmit={handleSubmit}
-      onCancel={onCancel}
+      onCancel={abort}
       loading={isReplying}
       allowSpeech
       placeholder="发消息..."

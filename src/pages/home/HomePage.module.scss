@@ -57,11 +57,6 @@
   }
 }
 
-.dynamicCardScrollReserve {
-  width: 1px;
-  pointer-events: none;
-}
-
 .composerBar {
   // 安全区内边距避免 iOS 底部小黑条遮挡输入框。
   padding: 8px 16px calc(12px + env(safe-area-inset-bottom));

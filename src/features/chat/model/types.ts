@@ -46,8 +46,6 @@ export interface InsuranceSubmission {
   readonly phone: string
 }
 
-export type DynamicCardReadyHandler = (surfaceId: string, element: HTMLElement) => void
-
 export type ChatMessageContent =
   | TextMessageContent
   | ThinkingMessageContent
