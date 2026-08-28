@@ -29,6 +29,16 @@ describe('MermaidViewer', () => {
     expect(mermaidCalls).toHaveLength(1)
     expect(mermaidCalls[0]).toMatchObject({
       children: source,
+      actions: {
+        enableDownload: false,
+        enableZoom: false,
+        customActions: [
+          { key: 'panzoom-in', onItemClick: expect.any(Function) },
+          { key: 'panzoom-out', onItemClick: expect.any(Function) },
+          { key: 'panzoom-reset', onItemClick: expect.any(Function) },
+          { key: 'download-svg', onItemClick: expect.any(Function) },
+        ],
+      },
       classNames: {
         graph: expect.any(String),
         code: expect.any(String),

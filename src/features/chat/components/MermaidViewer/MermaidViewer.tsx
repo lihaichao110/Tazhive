@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Mermaid, type MermaidProps } from '@ant-design/x'
+import { Download, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react'
 
+import { downloadMermaidSvg } from './downloadMermaidSvg'
+import { useMermaidPanzoom } from './useMermaidPanzoom'
 import styles from './MermaidViewer.module.scss'
 
 interface MermaidViewerProps {
@@ -116,11 +119,62 @@ export function MermaidViewer({ source }: MermaidViewerProps) {
     setRenderAttempt((attempt) => attempt + 1)
   }, [])
 
+  const renderKey = `${renderAttempt}-${source}`
+  const panzoomControls = useMermaidPanzoom({
+    enabled: renderType === 'image' && renderStatus === 'success',
+    frameRef,
+    graphClassName: styles.graph,
+    renderKey,
+  })
+
+  const handleDownload = useCallback((): void => {
+    const svg = frameRef.current?.querySelector<SVGSVGElement>(`.${styles.graph} svg`)
+    if (svg) downloadMermaidSvg(svg)
+  }, [])
+
+  const mermaidActions = useMemo<NonNullable<MermaidProps['actions']>>(
+    () => ({
+      enableDownload: false,
+      enableZoom: false,
+      customActions:
+        renderType === 'image'
+          ? [
+              {
+                key: 'panzoom-in',
+                label: '放大图表',
+                icon: <ZoomIn size={16} aria-hidden="true" />,
+                onItemClick: panzoomControls.zoomIn,
+              },
+              {
+                key: 'panzoom-out',
+                label: '缩小图表',
+                icon: <ZoomOut size={16} aria-hidden="true" />,
+                onItemClick: panzoomControls.zoomOut,
+              },
+              {
+                key: 'panzoom-reset',
+                label: '重置图表',
+                icon: <RotateCcw size={16} aria-hidden="true" />,
+                onItemClick: panzoomControls.reset,
+              },
+              {
+                key: 'download-svg',
+                label: '下载图表',
+                icon: <Download size={16} aria-hidden="true" />,
+                onItemClick: handleDownload,
+              },
+            ]
+          : [],
+    }),
+    [handleDownload, panzoomControls, renderType],
+  )
+
   return (
     <section className={styles.viewer} aria-label="Mermaid 图表">
       <div ref={frameRef} className={styles.frame}>
         <Mermaid
-          key={`${renderAttempt}-${source}`}
+          key={renderKey}
+          actions={mermaidActions}
           className={styles.mermaid}
           classNames={MERMAID_CLASS_NAMES}
           config={MERMAID_CONFIG}

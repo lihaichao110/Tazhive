@@ -3,6 +3,8 @@ import { Copy, MessageSquareQuote } from 'lucide-react'
 
 import { copyTextToClipboard } from './clipboard'
 import { readMessageSelection } from './selection'
+import { useToolbarInteractionLock } from './useToolbarInteractionLock'
+import { useTouchActivation } from './useTouchActivation'
 import styles from './MessageSelectionActions.module.scss'
 
 import type { ChatQuote, ChatRole } from '../../model/types'
@@ -26,18 +28,29 @@ type CopyStatus = 'idle' | 'copied' | 'failed'
 const TOOLBAR_HALF_WIDTH = 78
 const VIEWPORT_MARGIN = 8
 const TOOLBAR_ESTIMATED_HEIGHT = 48
+const SELECTION_SETTLE_DELAY = 80
 
+function prefersToolbarBelow(): boolean {
+  return window.matchMedia?.('(hover: none), (pointer: coarse)').matches ?? false
+}
+
+// 根据可视视口约束气泡位置；触屏端优先置于选区下方，避开常见的系统选区菜单。
 function getToolbarPosition(rect: DOMRect): ToolbarPosition {
+  const viewport = window.visualViewport
+  const viewportLeft = viewport?.offsetLeft ?? 0
+  const viewportTop = viewport?.offsetTop ?? 0
+  const viewportWidth = viewport?.width ?? window.innerWidth
   const left = Math.min(
-    window.innerWidth - TOOLBAR_HALF_WIDTH - VIEWPORT_MARGIN,
-    Math.max(TOOLBAR_HALF_WIDTH + VIEWPORT_MARGIN, rect.left + rect.width / 2),
+    viewportLeft + viewportWidth - TOOLBAR_HALF_WIDTH - VIEWPORT_MARGIN,
+    Math.max(viewportLeft + TOOLBAR_HALF_WIDTH + VIEWPORT_MARGIN, rect.left + rect.width / 2),
   )
-  const hasSpaceAbove = rect.top >= TOOLBAR_ESTIMATED_HEIGHT + VIEWPORT_MARGIN
+  const hasSpaceAbove = rect.top - viewportTop >= TOOLBAR_ESTIMATED_HEIGHT + VIEWPORT_MARGIN
+  const placement = prefersToolbarBelow() || !hasSpaceAbove ? 'below' : 'above'
 
   return {
     left,
-    top: hasSpaceAbove ? rect.top - VIEWPORT_MARGIN : rect.bottom + VIEWPORT_MARGIN,
-    placement: hasSpaceAbove ? 'above' : 'below',
+    top: placement === 'above' ? rect.top - VIEWPORT_MARGIN : rect.bottom + VIEWPORT_MARGIN,
+    placement,
   }
 }
 
@@ -53,17 +66,26 @@ export function MessageSelectionActions({
   const toolbarRef = useRef<HTMLDivElement>(null)
   const selectionTimerRef = useRef<number>(undefined)
   const copyTimerRef = useRef<number>(undefined)
+  const {
+    begin: beginInteraction,
+    isActive: isToolbarInteractionActive,
+    release: releaseToolbarInteraction,
+    reset: resetToolbarInteraction,
+  } = useToolbarInteractionLock()
   const [selectedText, setSelectedText] = useState('')
   const [position, setPosition] = useState<ToolbarPosition | null>(null)
   const [copyStatus, setCopyStatus] = useState<CopyStatus>('idle')
 
   const closeToolbar = useCallback(() => {
+    resetToolbarInteraction()
     setSelectedText('')
     setPosition(null)
     setCopyStatus('idle')
-  }, [])
+  }, [resetToolbarInteraction])
 
   const updateSelection = useCallback(() => {
+    if (isToolbarInteractionActive()) return
+
     if (!enabled || !containerRef.current) {
       closeToolbar()
       return
@@ -78,20 +100,57 @@ export function MessageSelectionActions({
     setSelectedText(messageSelection.text)
     setPosition(getToolbarPosition(messageSelection.rect))
     setCopyStatus('idle')
-  }, [closeToolbar, enabled])
+  }, [closeToolbar, enabled, isToolbarInteractionActive])
 
-  const handlePointerUp = useCallback(() => {
+  // 移动端选区和拖拽手柄会异步更新，统一防抖后只读取最终范围。
+  const scheduleSelectionUpdate = useCallback(() => {
+    if (isToolbarInteractionActive()) return
+
     window.clearTimeout(selectionTimerRef.current)
-    // 移动端原生选区会在 pointerup 后才完成，延后一帧读取最终范围。
-    selectionTimerRef.current = window.setTimeout(updateSelection, 0)
-  }, [updateSelection])
+    selectionTimerRef.current = window.setTimeout(updateSelection, SELECTION_SETTLE_DELAY)
+  }, [isToolbarInteractionActive, updateSelection])
+
+  // 气泡交互期间保留已缓存文本，避免 Android 在 click 前折叠选区并卸载按钮。
+  const beginToolbarInteraction = useCallback(() => {
+    window.clearTimeout(selectionTimerRef.current)
+    beginInteraction()
+  }, [beginInteraction])
+
+  const cancelToolbarInteraction = useCallback(() => {
+    resetToolbarInteraction()
+    scheduleSelectionUpdate()
+  }, [resetToolbarInteraction, scheduleSelectionUpdate])
 
   const handleKeyUp = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
-      if (event.shiftKey || event.key === 'Shift') updateSelection()
+      if (event.shiftKey || event.key === 'Shift') scheduleSelectionUpdate()
     },
-    [updateSelection],
+    [scheduleSelectionUpdate],
   )
+
+  useEffect(() => {
+    if (!enabled) {
+      window.clearTimeout(selectionTimerRef.current)
+      closeToolbar()
+      return
+    }
+
+    const handleSelectionChange = () => {
+      const container = containerRef.current
+      const selection = window.getSelection()
+      const selectionTouchesContainer =
+        container &&
+        selection &&
+        ((selection.anchorNode && container.contains(selection.anchorNode)) ||
+          (selection.focusNode && container.contains(selection.focusNode)))
+
+      // 避免一条消息的选区变化让聊天记录中的所有消息同时启动定时器。
+      if (position || selectionTouchesContainer) scheduleSelectionUpdate()
+    }
+
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => document.removeEventListener('selectionchange', handleSelectionChange)
+  }, [closeToolbar, enabled, position, scheduleSelectionUpdate])
 
   useEffect(() => {
     if (!position) return
@@ -101,21 +160,16 @@ export function MessageSelectionActions({
       if (target instanceof Node && toolbarRef.current?.contains(target)) return
       closeToolbar()
     }
-    const handleSelectionChange = () => {
-      if (window.getSelection()?.isCollapsed) closeToolbar()
-    }
     const handleEscape = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') closeToolbar()
     }
 
     document.addEventListener('pointerdown', handlePointerDown, true)
-    document.addEventListener('selectionchange', handleSelectionChange)
     document.addEventListener('keydown', handleEscape)
     window.addEventListener('resize', closeToolbar)
     window.addEventListener('scroll', closeToolbar, true)
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown, true)
-      document.removeEventListener('selectionchange', handleSelectionChange)
       document.removeEventListener('keydown', handleEscape)
       window.removeEventListener('resize', closeToolbar)
       window.removeEventListener('scroll', closeToolbar, true)
@@ -143,6 +197,8 @@ export function MessageSelectionActions({
     closeToolbar()
     onQuoteSelect({ messageId, role, text: selectedText })
   }, [closeToolbar, messageId, onQuoteSelect, role, selectedText])
+  const copyActivation = useTouchActivation(handleCopy, releaseToolbarInteraction)
+  const quoteActivation = useTouchActivation(handleQuote, releaseToolbarInteraction)
 
   const copyLabel =
     copyStatus === 'copied' ? '已复制' : copyStatus === 'failed' ? '复制失败' : '复制'
@@ -151,8 +207,10 @@ export function MessageSelectionActions({
     <div
       ref={containerRef}
       className={styles.selectionArea}
-      onPointerUp={handlePointerUp}
+      onPointerUp={scheduleSelectionUpdate}
+      onTouchEnd={scheduleSelectionUpdate}
       onKeyUp={handleKeyUp}
+      onContextMenu={(event) => event.preventDefault()}
     >
       {children}
       {position ? (
@@ -163,14 +221,16 @@ export function MessageSelectionActions({
           role="toolbar"
           aria-label="选中文字操作"
           aria-live="polite"
-          onPointerDown={(event) => event.preventDefault()}
+          onPointerDown={beginToolbarInteraction}
+          onPointerUp={releaseToolbarInteraction}
+          onPointerCancel={cancelToolbarInteraction}
         >
-          <button type="button" className={styles.action} onClick={handleCopy}>
+          <button type="button" className={styles.action} {...copyActivation}>
             <Copy size={16} aria-hidden="true" />
             {copyLabel}
           </button>
           <span className={styles.divider} aria-hidden="true" />
-          <button type="button" className={styles.action} onClick={handleQuote}>
+          <button type="button" className={styles.action} {...quoteActivation}>
             <MessageSquareQuote size={16} aria-hidden="true" />
             追问
           </button>
