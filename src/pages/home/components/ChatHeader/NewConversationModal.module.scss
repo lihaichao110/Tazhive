@@ -1,0 +1,11 @@
+.modal {
+  :global(.ant-modal-body) {
+    outline: none;
+    box-shadow: none;
+  }
+
+  :global(.ant-input:focus),
+  :global(.ant-input-focused) {
+    box-shadow: none;
+  }
+}

@@ -1,9 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { renderToStaticMarkup } from 'react-dom/server'
+// @vitest-environment happy-dom
+
+import { act } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DrawerProps } from 'antd'
 
 import { ChatSidebar } from './ChatSidebar'
+
+import { ConversationStoreProvider, createConversationStore } from '@/features/chat'
 
 const { drawerCalls } = vi.hoisted(() => ({
   drawerCalls: [] as DrawerProps[],
@@ -16,42 +21,57 @@ vi.mock('antd', () => ({
   },
 }))
 
+let host: HTMLDivElement
+let root: Root
+
 describe('ChatSidebar', () => {
   beforeEach(() => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
     drawerCalls.length = 0
+    host = document.createElement('div')
+    document.body.append(host)
+    root = createRoot(host)
   })
 
-  it('配置左侧受控抽屉并展示 mock 对话', () => {
-    const markup = renderToStaticMarkup(
-      <ChatSidebar
-        isOpen
-        selectedConversationId="product-roadmap"
-        onClose={() => undefined}
-        onSelect={() => undefined}
-      />,
-    )
-    const drawer = drawerCalls[0]
+  afterEach(() => {
+    act(() => root.unmount())
+    host.remove()
+    vi.unstubAllGlobals()
+  })
+
+  it('直接读取 Store 并展示动态会话列表', () => {
+    const store = createConversationStore(() => 'new-conversation')
+    store.getState().createConversation('新项目讨论')
+    store.getState().toggleSidebar()
+    act(() => {
+      root.render(
+        <ConversationStoreProvider store={store}>
+          <ChatSidebar />
+        </ConversationStoreProvider>,
+      )
+    })
+    const drawer = drawerCalls.at(-1)
 
     expect(drawer?.open).toBe(true)
     expect(drawer?.placement).toBe('left')
     expect(drawer?.size).toBe('min(88vw, 320px)')
-    expect(markup).toContain('产品路线图讨论')
-    expect(markup).toContain('aria-current="page"')
+    expect(host.textContent).toContain('新项目讨论')
+    expect(host.querySelector('[aria-current="page"]')).not.toBeNull()
   })
 
-  it('将抽屉关闭事件交给页面层处理', () => {
-    const onClose = vi.fn()
-    renderToStaticMarkup(
-      <ChatSidebar
-        isOpen
-        selectedConversationId="product-roadmap"
-        onClose={onClose}
-        onSelect={() => undefined}
-      />,
-    )
+  it('将抽屉关闭事件直接写回 Store', () => {
+    const store = createConversationStore()
+    store.getState().toggleSidebar()
+    act(() => {
+      root.render(
+        <ConversationStoreProvider store={store}>
+          <ChatSidebar />
+        </ConversationStoreProvider>,
+      )
+    })
 
-    drawerCalls[0]?.onClose?.({} as React.MouseEvent | React.KeyboardEvent)
+    act(() => drawerCalls.at(-1)?.onClose?.({} as React.MouseEvent | React.KeyboardEvent))
 
-    expect(onClose).toHaveBeenCalledOnce()
+    expect(store.getState().isSidebarOpen).toBe(false)
   })
 })

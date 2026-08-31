@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 import { ChatHeader } from './components/ChatHeader/ChatHeader'
 import { ChatSidebar } from './components/ChatSidebar/ChatSidebar'
@@ -11,14 +11,13 @@ import {
   DynamicCardHostProvider,
   TypingIndicator,
   useChatSession,
+  useConversationStore,
   type DynamicCardReadyHandler,
 } from '@/features/chat'
 
 // 组合聊天页各区域，并协调流式回复、错误提示和自动滚动等页面级行为。
 function HomePageContent() {
   const { messages, isReplying, error } = useChatSession()
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [selectedConversationId, setSelectedConversationId] = useState('product-roadmap')
   const scrollAreaRef = useRef<HTMLElement>(null)
   const handledSurfaceIdsRef = useRef(new Set<string>())
   // 流式文本已经可见时不再显示输入动画，避免同时出现两种“正在回复”反馈。
@@ -44,16 +43,8 @@ function HomePageContent() {
 
   return (
     <div className={styles.chatPage}>
-      <ChatHeader
-        isSidebarOpen={isSidebarOpen}
-        onSidebarToggle={() => setIsSidebarOpen((isOpen) => !isOpen)}
-      />
-      <ChatSidebar
-        isOpen={isSidebarOpen}
-        selectedConversationId={selectedConversationId}
-        onClose={() => setIsSidebarOpen(false)}
-        onSelect={setSelectedConversationId}
-      />
+      <ChatHeader />
+      <ChatSidebar />
       <DynamicCardHostProvider onReady={handleDynamicCardReady}>
         <main ref={scrollAreaRef} className={styles.scrollArea} aria-label="对话内容">
           <div className={styles.messageList}>
@@ -80,8 +71,10 @@ function HomePageContent() {
 
 // 为当前页面建立独立聊天会话，离开页面后自动释放全部会话状态。
 export function HomePage() {
+  const sessionVersion = useConversationStore((state) => state.sessionVersion)
+
   return (
-    <ChatSessionProvider>
+    <ChatSessionProvider key={sessionVersion}>
       <HomePageContent />
     </ChatSessionProvider>
   )

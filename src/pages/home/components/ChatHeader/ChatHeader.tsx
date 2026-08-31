@@ -1,38 +1,68 @@
+import { useState } from 'react'
 import { PanelLeft, SquarePen } from 'lucide-react'
 
 import styles from './ChatHeader.module.scss'
+import { NewConversationModal } from './NewConversationModal'
 
-interface ChatHeaderProps {
-  readonly isSidebarOpen: boolean
-  readonly onSidebarToggle: () => void
-}
+import {
+  selectActiveConversationTitle,
+  useChatSession,
+  useConversationStore,
+} from '@/features/chat'
 
-// 展示聊天页顶部操作，并将侧边栏开关意图交给页面层协调。
-export function ChatHeader({ isSidebarOpen, onSidebarToggle }: ChatHeaderProps) {
+// 展示聊天页顶部操作，并直接消费会话导航 Store 中与头部相关的最小状态切片。
+export function ChatHeader() {
+  const [isNewConversationOpen, setIsNewConversationOpen] = useState(false)
+  const activeConversationTitle = useConversationStore(selectActiveConversationTitle)
+  const isSidebarOpen = useConversationStore((state) => state.isSidebarOpen)
+  const createConversation = useConversationStore((state) => state.createConversation)
+  const toggleSidebar = useConversationStore((state) => state.toggleSidebar)
+  const { abort } = useChatSession()
+
+  const handleCreateConversation = (title: string) => {
+    // 旧请求必须先终止，随后 sessionVersion 更新会重建聊天 Provider 子树。
+    abort()
+    createConversation(title)
+    setIsNewConversationOpen(false)
+  }
+
   return (
-    <header className={styles.header}>
-      <div className={styles.left}>
-        <button
-          type="button"
-          className={styles.iconButton}
-          aria-controls="chat-conversation-sidebar"
-          aria-expanded={isSidebarOpen}
-          aria-label="切换侧边栏"
-          title="切换侧边栏"
-          onClick={onSidebarToggle}
-        >
-          <PanelLeft size={18} />
-        </button>
-        <button type="button" className={styles.iconButton} aria-label="新建对话" title="新建对话">
-          <SquarePen size={18} />
-        </button>
-      </div>
-      <div className={styles.brand}>
-        <div className={styles.brandText}>
-          <span className={styles.brandTitle}>问候</span>
-          <span className={styles.brandSubtitle}>AI生成可能会有误，注意核实</span>
+    <>
+      <header className={styles.header}>
+        <div className={styles.left}>
+          <button
+            type="button"
+            className={styles.iconButton}
+            aria-controls="chat-conversation-sidebar"
+            aria-expanded={isSidebarOpen}
+            aria-label="切换侧边栏"
+            title="切换侧边栏"
+            onClick={toggleSidebar}
+          >
+            <PanelLeft size={18} />
+          </button>
+          <button
+            type="button"
+            className={styles.iconButton}
+            aria-label="新建对话"
+            title="新建对话"
+            onClick={() => setIsNewConversationOpen(true)}
+          >
+            <SquarePen size={18} />
+          </button>
         </div>
-      </div>
-    </header>
+        <div className={styles.brand}>
+          <div className={styles.brandText}>
+            <span className={styles.brandTitle}>{activeConversationTitle}</span>
+            <span className={styles.brandSubtitle}>AI生成可能会有误，注意核实</span>
+          </div>
+        </div>
+      </header>
+      <NewConversationModal
+        isOpen={isNewConversationOpen}
+        onCancel={() => setIsNewConversationOpen(false)}
+        onConfirm={handleCreateConversation}
+      />
+    </>
   )
 }

@@ -1,11 +1,13 @@
-import { AntdProvider } from './providers'
+import { AntdProvider, AppStoreProvider } from './providers'
 
 import { HomePage } from '@/pages/home'
 
 export function App() {
   return (
-    <AntdProvider>
-      <HomePage />
-    </AntdProvider>
+    <AppStoreProvider>
+      <AntdProvider>
+        <HomePage />
+      </AntdProvider>
+    </AppStoreProvider>
   )
 }

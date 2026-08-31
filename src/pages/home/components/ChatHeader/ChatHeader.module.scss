@@ -35,9 +35,13 @@
 }
 
 .brandTitle {
+  max-width: min(50vw, 360px);
+  overflow: hidden;
   color: var(--color-text-primary);
   font-size: 16px;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .brandSubtitle {
@@ -89,6 +93,10 @@
   .brandSubtitle {
     max-width: 168px;
     font-size: 10px;
+  }
+
+  .brandTitle {
+    max-width: 42vw;
   }
 
   .iconButton {
