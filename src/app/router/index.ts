@@ -18,6 +18,12 @@ const APP_ROUTE_CONFIG = [
         },
       },
       {
+        path: APP_ROUTES.knowledgeBase,
+        lazy: {
+          Component: async () => (await import('@/pages/knowledge-base')).KnowledgeBasePage,
+        },
+      },
+      {
         path: APP_ROUTES.mermaidPreview,
         lazy: {
           Component: async () => (await import('@/pages/mermaid-preview')).MermaidPreviewPage,

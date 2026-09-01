@@ -1,5 +1,6 @@
 export const APP_ROUTES = {
   home: '/',
+  knowledgeBase: '/knowledge-base',
   mermaidPreview: '/mermaid-preview/:previewId',
 } as const
 

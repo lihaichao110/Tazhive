@@ -1,15 +1,31 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import { Sender } from '@ant-design/x'
-import { LayoutGrid, Plus, X } from 'lucide-react'
+import { Dropdown, type MenuProps } from 'antd'
+import { Database, LayoutGrid, Plus, X } from 'lucide-react'
+import { useNavigate } from 'react-router'
 
 import styles from './ChatComposer.module.scss'
 import { ChatModeSelector } from '../ChatModeSelector/ChatModeSelector'
 
 import { useChatSession } from '../../providers/useChatSession'
+import { APP_ROUTES } from '@/shared/config'
+
+const MORE_MENU_ITEMS: MenuProps['items'] = [
+  {
+    key: 'knowledge-base',
+    icon: <Database size={16} aria-hidden="true" />,
+    label: '知识库',
+  },
+]
 
 // 底部工具行：左侧为自定义工具按钮，右侧为 Sender 默认的语音与发送按钮。
 function ComposerFooter({ actionNode }: { readonly actionNode: ReactNode }) {
   const { isReplying, mode, setMode } = useChatSession()
+  const navigate = useNavigate()
+
+  const handleMoreMenuClick: MenuProps['onClick'] = ({ key }) => {
+    if (key === 'knowledge-base') void navigate(APP_ROUTES.knowledgeBase)
+  }
 
   return (
     <div className={styles.toolbar}>
@@ -18,10 +34,22 @@ function ComposerFooter({ actionNode }: { readonly actionNode: ReactNode }) {
           <Plus size={16} />
         </button>
         <ChatModeSelector disabled={isReplying} mode={mode} onChange={setMode} />
-        <button type="button" className={styles.toolButton} aria-label="更多操作" title="更多">
-          <LayoutGrid size={16} />
-          <span className={styles.toolLabel}>更多</span>
-        </button>
+        <Dropdown
+          menu={{ items: MORE_MENU_ITEMS, onClick: handleMoreMenuClick }}
+          placement="topLeft"
+          trigger={['click']}
+        >
+          <button
+            type="button"
+            className={styles.toolButton}
+            aria-label="更多操作"
+            aria-haspopup="menu"
+            title="更多"
+          >
+            <LayoutGrid size={16} />
+            <span className={styles.toolLabel}>更多</span>
+          </button>
+        </Dropdown>
       </div>
       {actionNode}
     </div>

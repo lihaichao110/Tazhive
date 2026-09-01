@@ -1,0 +1,130 @@
+.list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--kb-border);
+  border-radius: 16px;
+  background: var(--kb-surface);
+  transition: border-color 160ms ease;
+
+  &[data-status='success'] {
+    border-color: rgb(2 133 80 / 24%);
+    background: #fbfefc;
+  }
+
+  &[data-status='error'] {
+    border-color: #f3c4c4;
+    background: #fffafa;
+  }
+}
+
+.fileIcon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: var(--kb-accent);
+  background: var(--kb-accent-soft);
+}
+
+.fileContent {
+  min-width: 0;
+}
+
+.fileHeading,
+.statusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fileName {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--kb-text);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileSize,
+.statusRow {
+  color: var(--kb-text-muted);
+  font-size: 12px;
+}
+
+.statusRow {
+  margin-top: 5px;
+}
+
+.progressTrack {
+  height: 5px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8edea;
+
+  span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #028550, #35b879);
+    transition: width 120ms ease;
+  }
+}
+
+.error {
+  margin-top: 6px;
+  color: #a93636;
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+
+  button {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    color: var(--kb-text-muted);
+    background: transparent;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--kb-text);
+      background: var(--kb-surface-soft);
+    }
+  }
+}
+
+@media (width <= 520px) {
+  .item {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .actions {
+    grid-column: 2;
+    justify-self: end;
+    margin-top: -4px;
+  }
+}
