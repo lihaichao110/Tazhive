@@ -1,108 +1,48 @@
 .viewer {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
   min-width: 0;
   max-width: 100%;
   width: 100%;
-}
-
-.frame {
-  position: relative;
-  min-width: 0;
-  max-width: 100%;
-  width: 100%;
-
-  :global(.ant-mermaid-graph) {
-    border: 1px solid var(--color-border);
-    border-top: none;
-    height: 300px;
-  }
-}
-
-.mermaid {
-  min-width: 0;
-  max-width: 100%;
-  width: 100%;
-}
-
-.graph {
-  min-width: 0;
-  width: 100%;
-
-  &:global(.ant-mermaid-graph) :global(svg) {
-    display: block;
-    width: 100%;
-    max-width: 100%;
-    height: auto;
-    max-height: 100%;
-  }
-}
-
-.code {
-  min-width: 0;
-  max-width: 100%;
-
-  :global(.ant-codeHighlighter-code) {
-    overflow: auto;
-  }
-
-  :global(.ant-codeHighlighter-code pre),
-  :global(.ant-codeHighlighter-code code) {
-    display: block;
-    width: max-content;
-    min-width: 100%;
-  }
-
-  :global(.ant-codeHighlighter-code code > span) {
-    display: block;
-  }
-}
-
-.status {
-  position: absolute;
-  z-index: 1;
-  top: 52px;
-  right: 1px;
-  bottom: 1px;
-  left: 1px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  color: var(--color-text-muted);
-  background: var(--color-surface);
-  pointer-events: none;
-}
-
-.statusError {
-  color: var(--color-text-secondary);
-  pointer-events: auto;
-}
-
-.errorContent {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  text-align: center;
-}
-
-.retryButton {
-  padding: 7px 14px;
-  border: 1px solid var(--color-accent-border);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  color: var(--color-accent);
-  background: var(--color-surface);
-  font: inherit;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 48px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface, #fff);
+}
+
+.previewButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  color: var(--color-text-secondary, #666a70);
+  background: transparent;
+  font-size: 13px;
   cursor: pointer;
 
   &:hover {
-    background: var(--color-surface-hover);
+    color: var(--color-text-primary, #202124);
+    background: var(--color-surface-hover, #efefef);
   }
 
   &:focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid var(--color-focus, var(--color-accent));
     outline-offset: 2px;
+  }
+}
+
+.diagram {
+  :global(.ant-mermaid-graph) {
+    height: 300px;
+    border: none;
   }
 }

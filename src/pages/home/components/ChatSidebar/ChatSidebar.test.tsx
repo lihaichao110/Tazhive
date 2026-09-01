@@ -55,6 +55,7 @@ describe('ChatSidebar', () => {
     expect(drawer?.open).toBe(true)
     expect(drawer?.placement).toBe('left')
     expect(drawer?.size).toBe('min(88vw, 320px)')
+    expect(drawer?.closable).toEqual({ placement: 'end' })
     expect(host.textContent).toContain('新项目讨论')
     expect(host.querySelector('[aria-current="page"]')).not.toBeNull()
   })

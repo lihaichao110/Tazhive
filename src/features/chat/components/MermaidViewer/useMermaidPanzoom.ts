@@ -1,17 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, type RefObject } from 'react'
-import Panzoom, { type PanzoomObject } from '@panzoom/panzoom'
+import { useEffect, type RefObject } from 'react'
+import Panzoom from '@panzoom/panzoom'
 
 interface UseMermaidPanzoomOptions {
   readonly enabled: boolean
   readonly frameRef: RefObject<HTMLDivElement | null>
   readonly graphClassName: string
   readonly renderKey: string
-}
-
-interface MermaidPanzoomControls {
-  readonly reset: () => void
-  readonly zoomIn: () => void
-  readonly zoomOut: () => void
 }
 
 const restoreStyle = (element: Element, style: string | null): void => {
@@ -23,15 +17,13 @@ const restoreStyle = (element: Element, style: string | null): void => {
   element.setAttribute('style', style)
 }
 
-// 使用 Panzoom 统一管理 Mermaid SVG 的鼠标、滚轮与移动端触摸交互。
+// 为 Mermaid SVG 提供拖拽、滚轮及移动端双指缩放，不对外暴露工具栏操作。
 export function useMermaidPanzoom({
   enabled,
   frameRef,
   graphClassName,
   renderKey,
-}: UseMermaidPanzoomOptions): MermaidPanzoomControls {
-  const panzoomRef = useRef<PanzoomObject | null>(null)
-
+}: UseMermaidPanzoomOptions): void {
   useEffect(() => {
     if (!enabled) return
 
@@ -48,7 +40,6 @@ export function useMermaidPanzoom({
       pinchAndPan: true,
       step: 0.2,
     })
-    panzoomRef.current = panzoom
 
     const handleWheel = (event: WheelEvent): void => {
       panzoom.zoomWithWheel(event)
@@ -61,19 +52,6 @@ export function useMermaidPanzoom({
       panzoom.resetStyle()
       restoreStyle(graph, graphStyle)
       restoreStyle(svg, svgStyle)
-      if (panzoomRef.current === panzoom) panzoomRef.current = null
     }
   }, [enabled, frameRef, graphClassName, renderKey])
-
-  const reset = useCallback((): void => {
-    panzoomRef.current?.reset()
-  }, [])
-  const zoomIn = useCallback((): void => {
-    panzoomRef.current?.zoomIn()
-  }, [])
-  const zoomOut = useCallback((): void => {
-    panzoomRef.current?.zoomOut()
-  }, [])
-
-  return useMemo(() => ({ reset, zoomIn, zoomOut }), [reset, zoomIn, zoomOut])
 }

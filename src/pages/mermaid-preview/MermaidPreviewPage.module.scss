@@ -1,0 +1,238 @@
+.page {
+  --color-surface: #fff;
+  --color-surface-hover: #efefef;
+  --color-text-primary: #202124;
+  --color-text-secondary: #666a70;
+  --color-text-muted: #b6b8bc;
+  --color-border: #e5e5e5;
+  --color-focus: #555b65;
+  --font-chat: Inter, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  font-family: var(--font-chat);
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+}
+
+.header {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) 100% minmax(100px, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.backButton,
+.shareButton,
+.downloadButton,
+.tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  color: var(--color-text-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.backButton {
+  justify-self: start;
+  padding: 8px 10px;
+  border-radius: 8px;
+
+  &:hover {
+    color: var(--color-text-primary);
+    background: var(--color-surface-hover);
+  }
+}
+
+.tabs {
+  width: fit-content;
+  display: flex;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--color-surface-hover);
+  margin: 0 auto;
+}
+
+.tab {
+  min-width: 64px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+
+  &[aria-selected='true'] {
+    color: var(--color-text-primary);
+    background: var(--color-surface);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
+  }
+}
+
+.headerActions {
+  justify-self: end;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.shareButton,
+.downloadButton {
+  padding: 8px 10px;
+  border-radius: 8px;
+
+  &:disabled {
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+  }
+}
+
+.downloadButton:not(:disabled):hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-hover);
+}
+
+.saveStatus {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.saveError {
+  position: fixed;
+  z-index: 5;
+  top: 76px;
+  right: 20px;
+  max-width: calc(100% - 40px);
+  padding: 9px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  background: #fef2f2;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+  font-size: 14px;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px;
+}
+
+.diagram {
+  min-height: 100%;
+
+  :global(.ant-mermaid-graph) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100dvh - 112px);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+  }
+
+  :global(.ant-mermaid-graph svg) {
+    max-height: calc(100dvh - 144px);
+  }
+}
+
+.code {
+  min-height: 100%;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: auto;
+  background: var(--color-code-background);
+
+  :global(pre),
+  :global(code) {
+    display: block;
+    width: max-content;
+    min-width: 100%;
+    margin: 0;
+    padding: 0;
+    color: var(--color-heading);
+    background: transparent;
+    font: 14px/1.6 var(--font-mono);
+    overflow-wrap: normal;
+    white-space: pre;
+    word-break: normal;
+  }
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  height: 100%;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.emptyTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 20px;
+}
+
+.emptyButton {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  background: #25262a;
+  cursor: pointer;
+}
+
+@media (width <= 640px) {
+  .header {
+    grid-template-columns: auto 1fr auto;
+    gap: 6px;
+    min-height: 56px;
+    padding: 6px 10px;
+  }
+
+  .backButton span,
+  .shareButton span,
+  .downloadButton span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .tab {
+    min-width: 56px;
+    padding: 6px 10px;
+  }
+
+  .content {
+    padding: 12px;
+  }
+
+  .saveError {
+    top: 66px;
+    right: 10px;
+    max-width: calc(100% - 20px);
+  }
+}

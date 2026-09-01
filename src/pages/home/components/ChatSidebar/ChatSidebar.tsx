@@ -15,6 +15,7 @@ export function ChatSidebar() {
   return (
     <Drawer
       classNames={{ body: styles.drawerBody, header: styles.drawerHeader }}
+      closable={{ placement: 'end' }}
       keyboard
       mask={{ closable: true }}
       open={isOpen}

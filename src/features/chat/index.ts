@@ -1,6 +1,8 @@
 export { ChatMessage } from './components/ChatMessage/ChatMessage'
 export { ChatComposer } from './components/ChatComposer/ChatComposer'
 export { TypingIndicator } from './components/TypingIndicator/TypingIndicator'
+export { MermaidDiagram } from './components/MermaidViewer/MermaidDiagram'
+export { readMermaidPreview } from './lib/mermaidPreviewSession'
 export { ChatSessionProvider } from './providers/ChatSessionProvider'
 export { DynamicCardHostProvider } from './providers/DynamicCardHostProvider'
 export { ConversationStoreProvider } from './providers/ConversationStoreProvider'
