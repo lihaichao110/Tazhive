@@ -47,7 +47,7 @@ describe('AppRouteOutlet', () => {
     await act(async () => {
       navigation = router.navigate('/next')
     })
-    expect(container.textContent).toContain('页面加载中…')
+    expect(container.textContent).toContain('小塔正在赶来…')
     expect(container.querySelector('[role="status"]')).not.toBeNull()
 
     await act(async () => {
