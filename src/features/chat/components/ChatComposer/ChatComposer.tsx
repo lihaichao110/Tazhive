@@ -1,10 +1,12 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
 import { Sender } from '@ant-design/x'
+import type { SenderRef, SlotConfigType } from '@ant-design/x/es/sender'
 import { Dropdown, type MenuProps } from 'antd'
-import { Database, LayoutGrid, Plus, X } from 'lucide-react'
+import { Database, LayoutGrid, Paperclip, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
 
 import styles from './ChatComposer.module.scss'
+import { ChatAttachmentPicker } from './ChatAttachmentPicker'
 import { ChatModeSelector } from '../ChatModeSelector/ChatModeSelector'
 
 import { useChatSession } from '../../providers/useChatSession'
@@ -18,8 +20,32 @@ const MORE_MENU_ITEMS: MenuProps['items'] = [
   },
 ]
 
+const ATTACHMENT_SLOT_KEY = 'chat-attachment'
+const ATTACHMENT_SLOT_MARKER = '[附件]'
+
+interface ComposerFooterProps {
+  readonly actionNode: ReactNode
+  readonly attachmentNotice: string | null
+  readonly attachmentDisabled: boolean
+  readonly onFileSelected: (file: File) => void
+}
+
+interface ChatAttachment {
+  readonly slotKey: string
+  readonly file: File
+}
+
+function isAttachmentSlot(config: SlotConfigType): boolean {
+  return config.key === ATTACHMENT_SLOT_KEY
+}
+
 // 底部工具行：左侧为自定义工具按钮，右侧为 Sender 默认的语音与发送按钮。
-function ComposerFooter({ actionNode }: { readonly actionNode: ReactNode }) {
+function ComposerFooter({
+  actionNode,
+  attachmentNotice,
+  attachmentDisabled,
+  onFileSelected,
+}: ComposerFooterProps) {
   const { isReplying, mode, setMode } = useChatSession()
   const navigate = useNavigate()
 
@@ -28,30 +54,35 @@ function ComposerFooter({ actionNode }: { readonly actionNode: ReactNode }) {
   }
 
   return (
-    <div className={styles.toolbar}>
-      <div className={styles.toolbarLeft}>
-        <button type="button" className={styles.toolButton} aria-label="添加附件" title="添加附件">
-          <Plus size={16} />
-        </button>
-        <ChatModeSelector disabled={isReplying} mode={mode} onChange={setMode} />
-        <Dropdown
-          menu={{ items: MORE_MENU_ITEMS, onClick: handleMoreMenuClick }}
-          placement="topLeft"
-          trigger={['click']}
-        >
-          <button
-            type="button"
-            className={styles.toolButton}
-            aria-label="更多操作"
-            aria-haspopup="menu"
-            title="更多"
+    <div className={styles.footerContent}>
+      {attachmentNotice ? (
+        <p className={styles.attachmentNotice} role="alert">
+          {attachmentNotice}
+        </p>
+      ) : null}
+      <div className={styles.toolbar}>
+        <div className={styles.toolbarLeft}>
+          <ChatAttachmentPicker disabled={attachmentDisabled} onFileSelected={onFileSelected} />
+          <ChatModeSelector disabled={isReplying} mode={mode} onChange={setMode} />
+          <Dropdown
+            menu={{ items: MORE_MENU_ITEMS, onClick: handleMoreMenuClick }}
+            placement="topLeft"
+            trigger={['click']}
           >
-            <LayoutGrid size={16} />
-            <span className={styles.toolLabel}>更多</span>
-          </button>
-        </Dropdown>
+            <button
+              type="button"
+              className={styles.toolButton}
+              aria-label="更多操作"
+              aria-haspopup="menu"
+              title="更多"
+            >
+              <LayoutGrid size={16} />
+              <span className={styles.toolLabel}>更多</span>
+            </button>
+          </Dropdown>
+        </div>
+        {actionNode}
       </div>
-      {actionNode}
     </div>
   )
 }
@@ -59,24 +90,110 @@ function ComposerFooter({ actionNode }: { readonly actionNode: ReactNode }) {
 // 管理输入草稿、引用展示，并将发送与取消动作交给会话 Hook 处理。
 export function ChatComposer() {
   const { abort, clearQuote, isReplying, quote, sendMessage } = useChatSession()
+  const senderRef = useRef<SenderRef>(null)
   const [value, setValue] = useState('')
+  const [editorSlots, setEditorSlots] = useState<SlotConfigType[]>([])
+  const [attachment, setAttachment] = useState<ChatAttachment | null>(null)
+  const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null)
+
+  // 从当前编辑器快照移除附件词槽，同时保留其余文本和词槽。
+  const removeAttachment = useCallback((): void => {
+    const currentSlots = senderRef.current?.getValue().slotConfig ?? []
+    setEditorSlots(currentSlots.filter((config) => !isAttachmentSlot(config)))
+    setAttachment(null)
+    setAttachmentNotice(null)
+  }, [])
+
+  // 将本地文件表示为原子词槽；占位文本只用于启用发送按钮，不会进入请求。
+  const createAttachmentSlot = useCallback(
+    (file: File): SlotConfigType => ({
+      type: 'tag',
+      key: ATTACHMENT_SLOT_KEY,
+      formatResult: () => ATTACHMENT_SLOT_MARKER,
+      props: {
+        value: file.name,
+        label: (
+          <span className={styles.fileSlot}>
+            <Paperclip className={styles.fileSlotIcon} size={14} aria-hidden="true" />
+            <span className={styles.fileSlotName} title={file.name}>
+              {file.name}
+            </span>
+            <button
+              type="button"
+              className={styles.fileSlotRemove}
+              aria-label={`移除附件 ${file.name}`}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={(event) => {
+                event.stopPropagation()
+                removeAttachment()
+              }}
+            >
+              <X className={styles.fileSlotRemoveIcon} size={12} aria-hidden="true" />
+            </button>
+          </span>
+        ),
+      },
+    }),
+    [removeAttachment],
+  )
+
+  // 单文件模式下，新选择会替换旧附件，并保留编辑器中的其他内容。
+  const handleFileSelected = useCallback(
+    (file: File): void => {
+      const currentSlots = senderRef.current?.getValue().slotConfig ?? []
+      const nextSlots = currentSlots.filter((config) => !isAttachmentSlot(config))
+      nextSlots.push(createAttachmentSlot(file))
+      setAttachment({ slotKey: ATTACHMENT_SLOT_KEY, file })
+      setAttachmentNotice(`已选择 ${file.name}，文件上传能力待接入。`)
+      setEditorSlots(nextSlots)
+    },
+    [createAttachmentSlot],
+  )
 
   const renderFooter = useCallback(
-    (actionNode: ReactNode) => <ComposerFooter actionNode={actionNode} />,
-    [],
+    (actionNode: ReactNode) => (
+      <ComposerFooter
+        actionNode={actionNode}
+        attachmentNotice={attachmentNotice}
+        attachmentDisabled={isReplying}
+        onFileSelected={handleFileSelected}
+      />
+    ),
+    [attachmentNotice, handleFileSelected, isReplying],
+  )
+
+  const handleChange = useCallback(
+    (nextValue: string, _event?: unknown, nextSlots: SlotConfigType[] = []): void => {
+      setValue(nextValue)
+      // 退格或剪切删除原子词槽时，同步释放本地文件引用。
+      if (attachment && !nextSlots.some(isAttachmentSlot)) {
+        setAttachment(null)
+        setAttachmentNotice(null)
+        setEditorSlots([...nextSlots])
+      }
+    },
+    [attachment],
   )
 
   const handleSubmit = useCallback(
-    (content: string) => {
+    (content: string, submittedSlots: SlotConfigType[] = []) => {
+      if (attachment || submittedSlots.some(isAttachmentSlot)) {
+        setAttachmentNotice('文件上传能力待接入，暂时无法随消息发送。')
+        return
+      }
       const text = content.trim()
       // Sender 空值时禁用发送，这里兜底纯空白内容。
       if (!text) return
       // 配置缺失或请求被拒绝时保留草稿，便于用户修复问题后重新发送。
       if (sendMessage(text)) {
+        senderRef.current?.clear()
         setValue('')
+        setEditorSlots([])
+        setAttachment(null)
+        setAttachmentNotice(null)
       }
     },
-    [sendMessage],
+    [attachment, sendMessage],
   )
 
   const quoteSource = quote?.role === 'assistant' ? '引用 AI 回答' : '引用你的问题'
@@ -106,8 +223,10 @@ export function ChatComposer() {
 
   return (
     <Sender
+      ref={senderRef}
       value={value}
-      onChange={setValue}
+      slotConfig={editorSlots}
+      onChange={handleChange}
       onSubmit={handleSubmit}
       onCancel={abort}
       loading={isReplying}
