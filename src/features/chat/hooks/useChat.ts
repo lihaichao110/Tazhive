@@ -62,6 +62,7 @@ export function useChat() {
   const config = DEEPSEEK_CONFIG_RESULT.config
 
   const handleRequestError = useCallback((error: Error) => {
+    console.log('请求超时：', error);
     requestInFlightRef.current = false
     if (error.name !== 'AbortError') setRequestError(formatRequestError(error))
   }, [])
@@ -75,9 +76,9 @@ export function useChat() {
     () =>
       config
         ? createDeepSeekProvider(config, {
-            onError: handleRequestError,
-            onSuccess: handleRequestSuccess,
-          })
+          onError: handleRequestError,
+          onSuccess: handleRequestSuccess,
+        })
         : undefined,
     [config, handleRequestError, handleRequestSuccess],
   )

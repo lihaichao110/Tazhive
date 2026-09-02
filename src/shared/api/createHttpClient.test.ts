@@ -1,5 +1,5 @@
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { registerAccessTokenProvider } from './accessToken'
 import { createHttpClient } from './createHttpClient'
@@ -23,15 +23,24 @@ function createErrorAdapter(status?: number, data?: unknown, code?: string): Axi
 
 afterEach(() => {
   cleanups.splice(0).forEach((cleanup) => cleanup())
+  vi.unstubAllEnvs()
 })
 
 describe('createHttpClient', () => {
-  it('应用基础地址、超时和 JSON 响应配置', () => {
+  it('开发环境统一使用 /api 前缀', () => {
+    vi.stubEnv('MODE', 'development')
     const client = createHttpClient({ baseURL: 'https://api.example.com', timeout: 120_000 })
 
-    expect(client.defaults.baseURL).toBe('https://api.example.com')
+    expect(client.defaults.baseURL).toBe('/api')
     expect(client.defaults.timeout).toBe(120_000)
     expect(client.defaults.responseType).toBe('json')
+  })
+
+  it.each(['test', 'production'])('%s 环境使用业务配置的基础地址', (mode) => {
+    vi.stubEnv('MODE', mode)
+    const client = createHttpClient({ baseURL: 'https://api.example.com' })
+
+    expect(client.defaults.baseURL).toBe('https://api.example.com')
   })
 
   it('每次请求动态读取最新 Bearer token', async () => {

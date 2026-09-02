@@ -8,6 +8,13 @@ export interface HttpClientOptions {
   readonly timeout?: number
 }
 
+const DEVELOPMENT_API_PREFIX = ''
+
+// 开发环境统一通过 Vite 代理访问后端，其他环境继续使用业务侧提供的服务地址。
+function resolveBaseURL(configuredBaseURL?: string): string | undefined {
+  return import.meta.env.MODE === 'development' ? DEVELOPMENT_API_PREFIX : configuredBaseURL
+}
+
 function readServerMessage(data: unknown): string | undefined {
   if (typeof data !== 'object' || data === null || !('message' in data)) return undefined
   return typeof data.message === 'string' && data.message.trim() ? data.message : undefined
@@ -37,7 +44,7 @@ function normalizeAxiosError(error: AxiosError): HttpError {
 // 创建带统一鉴权和错误归一化能力的客户端；业务模块仍负责自己的接口路径与数据结构。
 export function createHttpClient(options: HttpClientOptions = {}): AxiosInstance {
   const client = axios.create({
-    baseURL: options.baseURL,
+    baseURL: resolveBaseURL(options.baseURL),
     timeout: options.timeout,
     responseType: 'json',
   })

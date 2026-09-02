@@ -8,7 +8,17 @@ import { ChatHeader } from './ChatHeader'
 
 import { ConversationStoreProvider, createConversationStore } from '@/features/chat'
 
-const { abort } = vi.hoisted(() => ({ abort: vi.fn() }))
+const { abort, auth } = vi.hoisted(() => ({
+  abort: vi.fn(),
+  auth: {
+    error: null as string | null,
+    isAuthenticated: false,
+    isLoggingIn: false,
+    login: vi.fn(async () => undefined),
+  },
+}))
+
+vi.mock('@/features/auth', () => ({ useAuth: () => auth }))
 
 vi.mock('@/features/chat', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/features/chat')>()
@@ -40,6 +50,10 @@ describe('ChatHeader', () => {
   beforeEach(() => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
     abort.mockClear()
+    auth.error = null
+    auth.isAuthenticated = false
+    auth.isLoggingIn = false
+    auth.login.mockClear()
     host = document.createElement('div')
     document.body.append(host)
     root = createRoot(host)
@@ -88,5 +102,54 @@ describe('ChatHeader', () => {
     expect(abort).toHaveBeenCalledOnce()
     expect(store.getState().sessionVersion).toBe(1)
     expect(host.textContent).toContain('新项目讨论')
+  })
+
+  it('点击登录按钮时调用认证能力', () => {
+    const store = createConversationStore()
+    act(() => {
+      root.render(
+        <ConversationStoreProvider store={store}>
+          <ChatHeader />
+        </ConversationStoreProvider>,
+      )
+    })
+
+    act(() => {
+      ;[...host.querySelectorAll('button')].find((button) => button.textContent === '登录')?.click()
+    })
+
+    expect(auth.login).toHaveBeenCalledOnce()
+  })
+
+  it('展示登录中、已登录和失败状态', () => {
+    const store = createConversationStore()
+    auth.isLoggingIn = true
+    act(() => {
+      root.render(
+        <ConversationStoreProvider store={store}>
+          <ChatHeader />
+        </ConversationStoreProvider>,
+      )
+    })
+
+    expect(host.textContent).toContain('登录中…')
+    expect(
+      [...host.querySelectorAll('button')].find((button) => button.textContent === '登录中…')
+        ?.disabled,
+    ).toBe(true)
+
+    auth.isLoggingIn = false
+    auth.isAuthenticated = true
+    auth.error = '上一次错误'
+    act(() => {
+      root.render(
+        <ConversationStoreProvider store={store}>
+          <ChatHeader />
+        </ConversationStoreProvider>,
+      )
+    })
+
+    expect(host.textContent).toContain('已登录')
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe('上一次错误')
   })
 })

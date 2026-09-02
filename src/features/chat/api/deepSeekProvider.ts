@@ -12,6 +12,7 @@ import type { DeepSeekThinkingConfig } from '../model/chatMode'
 import type { ChatQuote, ChatRole } from '../model/types'
 
 import type { DeepSeekConfig } from '@/shared/config'
+import { getAccessToken } from '@/shared/api/accessToken'
 
 export interface DeepSeekMessage extends XModelMessage {
   readonly role: ChatRole
@@ -52,7 +53,7 @@ class QuotedDeepSeekChatProvider extends DeepSeekChatProvider<
 
 // 统一在适配层拼接接口路径，允许环境变量同时使用带或不带尾斜杠的 Base URL。
 function buildCompletionsUrl(baseUrl: string): string {
-  return `${baseUrl.replace(/\/$/, '')}/chat/completions`
+  return `${baseUrl.replace(/\/$/, '')}`
 }
 
 // 将项目配置转换为 X SDK Provider，并把请求生命周期回传给上层 Hook 管理界面状态。
@@ -62,7 +63,8 @@ export function createDeepSeekProvider(
 ): DeepSeekChatProvider<DeepSeekMessage, DeepSeekRequestParams, SSEOutput> {
   // XRequest 只负责传输和流解析；对话消息的组织、重试与错误展示由 useChat 统一处理。
   const request = XRequest<DeepSeekRequestParams, SSEOutput, DeepSeekMessage>(
-    buildCompletionsUrl(config.baseUrl),
+    // buildCompletionsUrl(config.baseUrl),
+    buildCompletionsUrl('/api/v1/chat/956a7332-9216-4011-9aa4-fb4b0bb8cf1f'),
     {
       manual: true,
       params: {
@@ -70,7 +72,7 @@ export function createDeepSeekProvider(
         stream: true,
         thinking: { type: 'disabled' },
       },
-      headers: { Authorization: `Bearer ${config.apiKey}` },
+      headers: { Authorization: `Bearer ${getAccessToken()}` },
       timeout: 30_000,
       streamTimeout: 30_000,
       callbacks: {

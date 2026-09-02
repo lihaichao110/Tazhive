@@ -36,7 +36,7 @@ export function uploadKnowledgeFile({
   formData.append('files', file)
 
   const promise = knowledgeBaseClient
-    .post<void>('/knowledge-base/files', formData, {
+    .post<void>('/api/v1/documents/upload', formData, {
       adapter: 'xhr',
       signal: controller.signal,
       onUploadProgress: (event) => reportUploadProgress(event, onProgress),
