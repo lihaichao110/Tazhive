@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react'
 import { XProvider } from '@ant-design/x'
 import xZhCN from '@ant-design/x/locale/zh_CN'
+import { App as AntdApp } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
+
+import { HttpErrorMessageBridge } from './HttpErrorMessageBridge'
 
 interface AntdProviderProps {
   readonly children: ReactNode
@@ -22,7 +25,10 @@ export function AntdProvider({ children }: AntdProviderProps) {
         },
       }}
     >
-      {children}
+      <AntdApp component={false} message={{ maxCount: 3 }}>
+        <HttpErrorMessageBridge />
+        {children}
+      </AntdApp>
     </XProvider>
   )
 }

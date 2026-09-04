@@ -2,7 +2,11 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { readStoredAccessToken, saveAccessToken } from './accessTokenStorage'
+import {
+  clearStoredAccessToken,
+  readStoredAccessToken,
+  saveAccessToken,
+} from './accessTokenStorage'
 
 describe('accessTokenStorage', () => {
   beforeEach(() => window.localStorage.clear())
@@ -24,6 +28,17 @@ describe('accessTokenStorage', () => {
     })
 
     expect(readStoredAccessToken()).toBeNull()
+  })
+
+  it('清除令牌且不因受限存储阻断注销', () => {
+    saveAccessToken('access-token')
+    clearStoredAccessToken()
+    expect(readStoredAccessToken()).toBeNull()
+
+    vi.spyOn(window.localStorage, 'removeItem').mockImplementation(() => {
+      throw new DOMException('blocked')
+    })
+    expect(() => clearStoredAccessToken()).not.toThrow()
   })
 
   it('存储写入失败时抛出可展示的统一错误', () => {

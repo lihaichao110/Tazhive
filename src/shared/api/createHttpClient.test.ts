@@ -1,7 +1,7 @@
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { registerAccessTokenProvider } from './accessToken'
+import { registerAccessTokenProvider, registerAccessTokenRejectedHandler } from './accessToken'
 import { createHttpClient } from './createHttpClient'
 import { HttpError } from './httpError'
 
@@ -68,6 +68,23 @@ describe('createHttpClient', () => {
     ])
   })
 
+  it('仅上报携带 Bearer token 的 401，并保留请求实际使用的令牌', async () => {
+    let token: string | null = 'request-token'
+    const rejectedTokens: string[] = []
+    cleanups.push(registerAccessTokenProvider(() => token))
+    cleanups.push(
+      registerAccessTokenRejectedHandler((rejectedToken) => rejectedTokens.push(rejectedToken)),
+    )
+    const client = createHttpClient()
+
+    await client.get('/protected', { adapter: createErrorAdapter(401) }).catch(() => undefined)
+    await client.get('/server-error', { adapter: createErrorAdapter(500) }).catch(() => undefined)
+    token = null
+    await client.get('/anonymous', { adapter: createErrorAdapter(401) }).catch(() => undefined)
+
+    expect(rejectedTokens).toEqual(['request-token'])
+  })
+
   it('优先使用后端 message 并保留状态码', async () => {
     const client = createHttpClient()
     const promise = client.get('/documents', {
@@ -78,6 +95,57 @@ describe('createHttpClient', () => {
       name: 'HttpError',
       message: '文档内容无法解析',
       status: 422,
+    })
+  })
+
+  it.each([
+    [{ detail: '文件格式不支持' }, '文件格式不支持'],
+    [
+      {
+        detail: [
+          { loc: ['body', 'files', 0], msg: '文件不能为空', type: 'value_error' },
+          { loc: ['body', 'files', 1], msg: '文件过大', type: 'value_error' },
+        ],
+      },
+      '文件不能为空；文件过大',
+    ],
+  ])('解析 FastAPI detail 错误', async (data, message) => {
+    const client = createHttpClient()
+
+    await expect(
+      client.post('/documents', undefined, { adapter: createErrorAdapter(422, data) }),
+    ).rejects.toMatchObject({ name: 'HttpError', message, status: 422 })
+  })
+
+  it.each([
+    { detail: '   ' },
+    { detail: { msg: '不应直接展示的对象' } },
+    { detail: [{ msg: '' }, { loc: ['body'], type: 'missing' }] },
+  ])('非法 detail 结构回退为 HTTP 提示', async (data) => {
+    const client = createHttpClient()
+
+    await expect(
+      client.get('/failure', { adapter: createErrorAdapter(422, data) }),
+    ).rejects.toMatchObject({
+      name: 'HttpError',
+      message: '请求失败（HTTP 422）',
+      status: 422,
+    })
+  })
+
+  it('归一化错误保留 code 和原始 cause', async () => {
+    const client = createHttpClient()
+
+    await expect(
+      client.get('/failure', {
+        adapter: createErrorAdapter(400, { detail: '参数错误' }, 'ERR_BAD_REQUEST'),
+      }),
+    ).rejects.toMatchObject({
+      name: 'HttpError',
+      message: '参数错误',
+      status: 400,
+      code: 'ERR_BAD_REQUEST',
+      cause: expect.any(AxiosError),
     })
   })
 

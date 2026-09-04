@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { requestLogin } from '../api/login'
-import { readStoredAccessToken, saveAccessToken } from '../model/accessTokenStorage'
+import {
+  clearStoredAccessToken,
+  readStoredAccessToken,
+  saveAccessToken,
+} from '../model/accessTokenStorage'
 import type { AuthController, LoginCredentials } from '../model/types'
 import { AuthContext } from './AuthContext'
 
-import { registerAccessTokenProvider } from '@/shared/api'
+import { registerAccessTokenProvider, registerAccessTokenRejectedHandler } from '@/shared/api'
 
 interface AuthProviderProps {
   readonly children: ReactNode
@@ -19,7 +23,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const accessTokenRef = useRef(accessToken)
   const loginInFlightRef = useRef(false)
 
-  useEffect(() => registerAccessTokenProvider(() => accessTokenRef.current), [])
+  useEffect(() => {
+    const unregisterTokenProvider = registerAccessTokenProvider(() => accessTokenRef.current)
+    const unregisterRejectedHandler = registerAccessTokenRejectedHandler((rejectedToken) => {
+      // 只注销被服务端拒绝的当前会话，避免旧请求的延迟 401 清除新登录状态。
+      if (accessTokenRef.current !== rejectedToken) return
+      accessTokenRef.current = null
+      clearStoredAccessToken()
+      setAccessToken(null)
+      setError(null)
+    })
+
+    return () => {
+      unregisterRejectedHandler()
+      unregisterTokenProvider()
+    }
+  }, [])
 
   const login = useCallback(async (credentials: LoginCredentials): Promise<void> => {
     if (loginInFlightRef.current || accessTokenRef.current) return

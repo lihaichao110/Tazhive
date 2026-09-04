@@ -2,13 +2,13 @@
 
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import type { AxiosAdapter } from 'axios'
+import { AxiosError, type AxiosAdapter } from 'axios'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AuthProvider } from './AuthProvider'
 import { useAuth } from './useAuth'
 
-import { createHttpClient } from '@/shared/api'
+import { createHttpClient, reportAccessTokenRejected } from '@/shared/api'
 
 const { requestLogin } = vi.hoisted(() => ({ requestLogin: vi.fn() }))
 
@@ -130,5 +130,62 @@ describe('AuthProvider', () => {
     })
 
     expect(requestLogin).toHaveBeenCalledOnce()
+  })
+
+  it('当前令牌被 401 拒绝后清除登录状态和持久化令牌', async () => {
+    window.localStorage.setItem('tazhive:access-token', 'expired-token')
+    act(() =>
+      root.render(
+        <AuthProvider>
+          <AuthProbe />
+        </AuthProvider>,
+      ),
+    )
+    const rejectedAdapter: AxiosAdapter = async (config) => {
+      throw new AxiosError('unauthorized', undefined, config, undefined, {
+        data: undefined,
+        status: 401,
+        statusText: 'Unauthorized',
+        headers: {},
+        config,
+      })
+    }
+
+    await act(async () => {
+      await createHttpClient()
+        .get('/protected', { adapter: rejectedAdapter })
+        .catch(() => undefined)
+    })
+
+    expect(host.textContent).toContain('登录')
+    expect(host.textContent).not.toContain('已登录')
+    expect(window.localStorage.getItem('tazhive:access-token')).toBeNull()
+
+    let authorization: unknown
+    const successAdapter: AxiosAdapter = async (config) => {
+      authorization = config.headers.get('Authorization')
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config }
+    }
+    await createHttpClient().get('/anonymous', { adapter: successAdapter })
+    expect(authorization).toBeUndefined()
+  })
+
+  it('旧令牌的延迟失效通知不清除新登录状态', async () => {
+    requestLogin.mockResolvedValue({ access_token: 'new-token', token_type: 'bearer' })
+    act(() =>
+      root.render(
+        <AuthProvider>
+          <AuthProbe />
+        </AuthProvider>,
+      ),
+    )
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('button')?.click()
+    })
+
+    act(() => reportAccessTokenRejected('old-token'))
+
+    expect(host.textContent).toContain('已登录')
+    expect(window.localStorage.getItem('tazhive:access-token')).toBe('new-token')
   })
 })

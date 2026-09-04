@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+// @vitest-environment happy-dom
+
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DeepSeekChatProvider, XRequest, XStream, type SSEOutput } from '@ant-design/x-sdk'
 
 import {
@@ -6,6 +8,10 @@ import {
   type DeepSeekMessage,
   type DeepSeekRequestParams,
 } from './deepSeekProvider'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 // 按指定字节位置切分响应，模拟中文字符和 SSE 事件跨网络分片到达的情况。
 function createByteStream(
@@ -116,6 +122,24 @@ describe('DeepSeek SSE 流', () => {
     })
 
     expect(error.message).toContain('401')
+  })
+
+  it('聊天请求携带 DeepSeek API Key', async () => {
+    let authorization: string | null = null
+    vi.stubGlobal('fetch', async (_input: RequestInfo | URL, options?: RequestInit) => {
+      authorization = new Headers(options?.headers).get('Authorization')
+      return new Response('data: [DONE]\n\n', {
+        headers: { 'content-type': 'text/event-stream' },
+      })
+    })
+    const provider = createDeepSeekProvider(
+      { apiKey: 'test-key', baseUrl: 'https://example.com', modelName: 'deepseek-chat' },
+      { onError: () => undefined, onSuccess: () => undefined },
+    )
+    provider.request.run({})
+    await provider.request.asyncHandler
+
+    expect(authorization).toBe('Bearer test-key')
   })
 
   it('取消请求返回 AbortError', async () => {

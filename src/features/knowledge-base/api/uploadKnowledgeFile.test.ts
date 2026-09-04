@@ -47,7 +47,12 @@ describe('uploadKnowledgeFile', () => {
   afterEach(() => post.mockReset())
 
   it('使用知识库地址和 120 秒超时创建客户端', () => {
-    expect(createHttpClient).toHaveBeenCalledWith({ baseURL: '', timeout: 120_000 })
+    const configuredBaseURL =
+      import.meta.env.VITE_KNOWLEDGE_BASE_BASE_URL?.trim().replace(/\/$/, '') ?? ''
+    expect(createHttpClient).toHaveBeenCalledWith({
+      baseURL: configuredBaseURL,
+      timeout: 120_000,
+    })
   })
 
   it('以 files 字段提交文件并通过 XHR 适配器报告进度', async () => {

@@ -1,7 +1,8 @@
 import axios, { type AxiosError, type AxiosInstance } from 'axios'
 
-import { getAccessToken } from './accessToken'
+import { getAccessToken, reportAccessTokenRejected } from './accessToken'
 import { HttpError } from './httpError'
+import { reportHttpError } from './httpErrorReporter'
 
 export interface HttpClientOptions {
   readonly baseURL?: string
@@ -15,9 +16,35 @@ function resolveBaseURL(configuredBaseURL?: string): string | undefined {
   return import.meta.env.MODE === 'development' ? DEVELOPMENT_API_PREFIX : configuredBaseURL
 }
 
+function readNonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const normalizedValue = value.trim()
+  return normalizedValue || undefined
+}
+
+// FastAPI 的请求校验错误会把多条提示放在 detail 数组中；仅提取适合展示的 msg。
+function readFastApiDetail(detail: unknown): string | undefined {
+  const detailMessage = readNonEmptyString(detail)
+  if (detailMessage) return detailMessage
+  if (!Array.isArray(detail)) return undefined
+
+  const validationMessages = detail.flatMap((item) => {
+    if (typeof item !== 'object' || item === null || !('msg' in item)) return []
+    const message = readNonEmptyString(item.msg)
+    return message ? [message] : []
+  })
+
+  return validationMessages.length > 0 ? validationMessages.join('；') : undefined
+}
+
+// 兼容既有 message 契约和 FastAPI detail，避免把未知对象直接转换成展示文本。
 function readServerMessage(data: unknown): string | undefined {
-  if (typeof data !== 'object' || data === null || !('message' in data)) return undefined
-  return typeof data.message === 'string' && data.message.trim() ? data.message : undefined
+  if (typeof data !== 'object' || data === null) return undefined
+  if ('message' in data) {
+    const message = readNonEmptyString(data.message)
+    if (message) return message
+  }
+  return 'detail' in data ? readFastApiDetail(data.detail) : undefined
 }
 
 function normalizeAxiosError(error: AxiosError): HttpError {
@@ -41,6 +68,14 @@ function normalizeAxiosError(error: AxiosError): HttpError {
   })
 }
 
+// 从失败请求中读取其实际使用的 Bearer token，用于安全关联 401 与当前会话。
+function readRequestAccessToken(error: AxiosError): string | null {
+  const authorization = error.config?.headers.get('Authorization')
+  if (typeof authorization !== 'string') return null
+  const match = /^Bearer\s+(.+)$/i.exec(authorization.trim())
+  return match?.[1]?.trim() || null
+}
+
 // 创建带统一鉴权和错误归一化能力的客户端；业务模块仍负责自己的接口路径与数据结构。
 export function createHttpClient(options: HttpClientOptions = {}): AxiosInstance {
   const client = axios.create({
@@ -62,7 +97,12 @@ export function createHttpClient(options: HttpClientOptions = {}): AxiosInstance
   client.interceptors.response.use(undefined, (error: unknown) => {
     // 取消属于用户操作而非请求失败，由业务层转换为自己的取消语义。
     if (axios.isCancel(error) || !axios.isAxiosError(error)) return Promise.reject(error)
-    return Promise.reject(normalizeAxiosError(error))
+    const normalizedError = normalizeAxiosError(error)
+    if (normalizedError.status === 401) {
+      reportAccessTokenRejected(readRequestAccessToken(error))
+    }
+    reportHttpError(normalizedError)
+    return Promise.reject(normalizedError)
   })
 
   return client
