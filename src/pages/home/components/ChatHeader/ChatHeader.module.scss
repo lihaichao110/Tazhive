@@ -33,15 +33,6 @@
   min-width: 0;
 }
 
-.loginError {
-  max-width: 180px;
-  overflow: hidden;
-  color: #9f2525;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .loginButton {
   flex: none;
   min-width: 64px;
@@ -68,6 +59,17 @@
     cursor: default;
     opacity: 0.55;
   }
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-button-primary);
+  color: var(--color-button-primary-text);
 }
 
 .brandText {
@@ -144,15 +146,15 @@
     max-width: 42vw;
   }
 
-  .loginError {
-    max-width: 84px;
-    font-size: 11px;
-  }
-
   .loginButton {
     min-width: 58px;
     height: 30px;
     padding: 0 10px;
+  }
+
+  .avatar {
+    width: 30px;
+    height: 30px;
   }
 
   .iconButton {

@@ -3,9 +3,14 @@ export interface LoginResponse {
   readonly token_type: string
 }
 
+export interface LoginCredentials {
+  readonly username: string
+  readonly password: string
+}
+
 export interface AuthController {
   readonly isAuthenticated: boolean
   readonly isLoggingIn: boolean
   readonly error: string | null
-  readonly login: () => Promise<void>
+  readonly login: (credentials: LoginCredentials) => Promise<void>
 }

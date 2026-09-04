@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { PanelLeft, SquarePen } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { PanelLeft, SquarePen, UserRound } from 'lucide-react'
 
 import styles from './ChatHeader.module.scss'
+import { LoginDrawer } from './LoginDrawer'
 import { NewConversationModal } from './NewConversationModal'
 
 import {
@@ -14,12 +15,17 @@ import { useAuth } from '@/features/auth'
 // 展示聊天页顶部操作，并直接消费会话导航 Store 中与头部相关的最小状态切片。
 export function ChatHeader() {
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false)
+  const [isLoginDrawerOpen, setIsLoginDrawerOpen] = useState(false)
   const activeConversationTitle = useConversationStore(selectActiveConversationTitle)
   const isSidebarOpen = useConversationStore((state) => state.isSidebarOpen)
   const createConversation = useConversationStore((state) => state.createConversation)
   const toggleSidebar = useConversationStore((state) => state.toggleSidebar)
   const { abort } = useChatSession()
   const { error: loginError, isAuthenticated, isLoggingIn, login } = useAuth()
+
+  useEffect(() => {
+    if (isAuthenticated) setIsLoginDrawerOpen(false)
+  }, [isAuthenticated])
 
   const handleCreateConversation = (title: string) => {
     // 旧请求必须先终止，随后 sessionVersion 更新会重建聊天 Provider 子树。
@@ -60,22 +66,28 @@ export function ChatHeader() {
           </div>
         </div>
         <div className={styles.right}>
-          {loginError ? (
-            <span className={styles.loginError} role="alert" title={loginError}>
-              {loginError}
+          {isAuthenticated ? (
+            <span className={styles.avatar} role="img" aria-label="当前账号已登录">
+              <UserRound aria-hidden="true" size={18} />
             </span>
-          ) : null}
-          <button
-            type="button"
-            className={styles.loginButton}
-            disabled={isLoggingIn || isAuthenticated}
-            aria-busy={isLoggingIn}
-            onClick={() => void login()}
-          >
-            {isAuthenticated ? '已登录' : isLoggingIn ? '登录中…' : '登录'}
-          </button>
+          ) : (
+            <button
+              type="button"
+              className={styles.loginButton}
+              onClick={() => setIsLoginDrawerOpen(true)}
+            >
+              登录
+            </button>
+          )}
         </div>
       </header>
+      <LoginDrawer
+        error={loginError}
+        isLoggingIn={isLoggingIn}
+        isOpen={isLoginDrawerOpen}
+        onClose={() => setIsLoginDrawerOpen(false)}
+        onLogin={login}
+      />
       <NewConversationModal
         isOpen={isNewConversationOpen}
         onCancel={() => setIsNewConversationOpen(false)}

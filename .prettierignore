@@ -3,3 +3,5 @@ node_modules
 pnpm-lock.yaml
 public/icons.svg
 src/shared/assets/*.svg
+.zcode
+harmony.md

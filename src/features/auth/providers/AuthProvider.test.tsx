@@ -19,7 +19,11 @@ function AuthProbe() {
   const auth = useAuth()
   return (
     <div>
-      <button type="button" disabled={auth.isLoggingIn} onClick={() => void auth.login()}>
+      <button
+        type="button"
+        disabled={auth.isLoggingIn}
+        onClick={() => void auth.login({ username: 'test-user', password: 'test-password' })}
+      >
         {auth.isAuthenticated ? '已登录' : auth.isLoggingIn ? '登录中' : '登录'}
       </button>
       {auth.error ? <span role="alert">{auth.error}</span> : null}
@@ -76,6 +80,10 @@ describe('AuthProvider', () => {
     })
 
     expect(window.localStorage.getItem('tazhive:access-token')).toBe('new-token')
+    expect(requestLogin).toHaveBeenCalledWith({
+      username: 'test-user',
+      password: 'test-password',
+    })
     expect(host.textContent).toContain('已登录')
 
     let authorization: unknown
@@ -103,5 +111,24 @@ describe('AuthProvider', () => {
 
     expect(host.querySelector('[role="alert"]')?.textContent).toBe('账号或密码错误')
     expect(host.querySelector<HTMLButtonElement>('button')?.disabled).toBe(false)
+  })
+
+  it('忽略同一时刻发起的重复登录', async () => {
+    requestLogin.mockResolvedValue({ access_token: 'new-token', token_type: 'bearer' })
+    act(() =>
+      root.render(
+        <AuthProvider>
+          <AuthProbe />
+        </AuthProvider>,
+      ),
+    )
+
+    await act(async () => {
+      const loginButton = host.querySelector<HTMLButtonElement>('button')
+      loginButton?.click()
+      loginButton?.click()
+    })
+
+    expect(requestLogin).toHaveBeenCalledOnce()
   })
 })

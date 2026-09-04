@@ -96,10 +96,18 @@ export function ChatComposer() {
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null)
   const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null)
 
-  // 从当前编辑器快照移除附件词槽，同时保留其余文本和词槽。
+  // 移除附件词槽：先删 DOM 节点，再从干净的 DOM 重新推导剩余内容同步受控状态。
+  // 限制：@ant-design/x 的 SlotTextArea 仅在 slotConfig 非空时才重建编辑器 DOM，
+  // 空数组分支不会清理标签，且库内部的 removeSlot 未通过 SenderRef 暴露，
+  // 因此这里对齐库内做法直接移除节点，保证仅剩附件时标签也能立即消失。
+  // filter 兜底用于 nativeElement 不可用的场景（如测试替身），正常路径下 DOM 已删、过滤为空操作。
   const removeAttachment = useCallback((): void => {
-    const currentSlots = senderRef.current?.getValue().slotConfig ?? []
-    setEditorSlots(currentSlots.filter((config) => !isAttachmentSlot(config)))
+    senderRef.current?.nativeElement
+      ?.querySelectorAll(`[data-slot-key="${ATTACHMENT_SLOT_KEY}"]`)
+      .forEach((node) => node.remove())
+    const remaining = senderRef.current?.getValue()
+    setValue(remaining?.value ?? '')
+    setEditorSlots((remaining?.slotConfig ?? []).filter((config) => !isAttachmentSlot(config)))
     setAttachment(null)
     setAttachmentNotice(null)
   }, [])

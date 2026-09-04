@@ -60,7 +60,7 @@ describe('uploadKnowledgeFile', () => {
     const formData: unknown = post.mock.calls[0]?.[1]
 
     expect(post).toHaveBeenCalledWith(
-      '/knowledge-base/files',
+      '/api/v1/documents/upload',
       expect.any(FormData),
       expect.any(Object),
     )

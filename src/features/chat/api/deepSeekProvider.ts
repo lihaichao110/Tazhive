@@ -12,7 +12,6 @@ import type { DeepSeekThinkingConfig } from '../model/chatMode'
 import type { ChatQuote, ChatRole } from '../model/types'
 
 import type { DeepSeekConfig } from '@/shared/config'
-import { getAccessToken } from '@/shared/api/accessToken'
 
 export interface DeepSeekMessage extends XModelMessage {
   readonly role: ChatRole
@@ -63,8 +62,8 @@ export function createDeepSeekProvider(
 ): DeepSeekChatProvider<DeepSeekMessage, DeepSeekRequestParams, SSEOutput> {
   // XRequest 只负责传输和流解析；对话消息的组织、重试与错误展示由 useChat 统一处理。
   const request = XRequest<DeepSeekRequestParams, SSEOutput, DeepSeekMessage>(
-    // buildCompletionsUrl(config.baseUrl),
-    buildCompletionsUrl('/api/v1/chat/956a7332-9216-4011-9aa4-fb4b0bb8cf1f'),
+    buildCompletionsUrl(config.baseUrl) + '/chat/completions',
+    // buildCompletionsUrl('/api/v1/chat/956a7332-9216-4011-9aa4-fb4b0bb8cf1f'),
     {
       manual: true,
       params: {
@@ -72,7 +71,7 @@ export function createDeepSeekProvider(
         stream: true,
         thinking: { type: 'disabled' },
       },
-      headers: { Authorization: `Bearer ${getAccessToken()}` },
+      headers: { Authorization: `Bearer ${config.apiKey}` },
       timeout: 30_000,
       streamTimeout: 30_000,
       callbacks: {

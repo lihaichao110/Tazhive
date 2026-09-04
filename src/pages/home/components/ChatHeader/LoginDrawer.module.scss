@@ -1,0 +1,62 @@
+.drawer {
+  :global(.ant-drawer-content) {
+    border-radius: 16px 16px 0 0;
+  }
+}
+
+.drawerHeader {
+  width: min(100%, 440px);
+  margin: 0 auto;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.drawerBody {
+  width: min(100%, 440px);
+  margin: 0 auto;
+  padding: 20px 0 28px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.error {
+  color: #9f2525;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.submitButton {
+  margin-top: 4px;
+}
+
+@media (width <= 480px) {
+  .drawerHeader,
+  .drawerBody {
+    width: 100%;
+  }
+
+  .drawerHeader {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .drawerBody {
+    padding: 20px 16px 24px;
+  }
+}

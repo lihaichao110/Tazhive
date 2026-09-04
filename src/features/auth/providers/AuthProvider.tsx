@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 
 import { requestLogin } from '../api/login'
 import { readStoredAccessToken, saveAccessToken } from '../model/accessTokenStorage'
-import type { AuthController } from '../model/types'
+import type { AuthController, LoginCredentials } from '../model/types'
 import { AuthContext } from './AuthContext'
 
 import { registerAccessTokenProvider } from '@/shared/api'
@@ -21,7 +21,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => registerAccessTokenProvider(() => accessTokenRef.current), [])
 
-  const login = useCallback(async (): Promise<void> => {
+  const login = useCallback(async (credentials: LoginCredentials): Promise<void> => {
     if (loginInFlightRef.current || accessTokenRef.current) return
 
     loginInFlightRef.current = true
@@ -29,7 +29,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setError(null)
 
     try {
-      const response = await requestLogin()
+      const response = await requestLogin(credentials)
       saveAccessToken(response.access_token)
       // ref 与持久化存储同步更新，确保紧随登录之后的请求立即读取到新令牌。
       accessTokenRef.current = response.access_token

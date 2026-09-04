@@ -28,6 +28,26 @@ vi.mock('@/features/chat', async (importOriginal) => {
   }
 })
 
+vi.mock('./LoginDrawer', () => ({
+  LoginDrawer: ({
+    isOpen,
+    onLogin,
+  }: {
+    isOpen: boolean
+    onLogin: (credentials: { username: string; password: string }) => Promise<void>
+  }) =>
+    isOpen ? (
+      <div role="dialog" aria-label="账号登录">
+        <button
+          type="button"
+          onClick={() => void onLogin({ username: 'lihaichao', password: 'lihaichao' })}
+        >
+          提交登录
+        </button>
+      </div>
+    ) : null,
+}))
+
 vi.mock('./NewConversationModal', () => ({
   NewConversationModal: ({
     isOpen,
@@ -104,7 +124,7 @@ describe('ChatHeader', () => {
     expect(host.textContent).toContain('新项目讨论')
   })
 
-  it('点击登录按钮时调用认证能力', () => {
+  it('点击登录按钮打开抽屉并通过表单调用认证能力', () => {
     const store = createConversationStore()
     act(() => {
       root.render(
@@ -118,12 +138,18 @@ describe('ChatHeader', () => {
       ;[...host.querySelectorAll('button')].find((button) => button.textContent === '登录')?.click()
     })
 
-    expect(auth.login).toHaveBeenCalledOnce()
+    expect(host.querySelector('[role="dialog"][aria-label="账号登录"]')).not.toBeNull()
+    act(() => {
+      ;[...host.querySelectorAll('button')]
+        .find((button) => button.textContent === '提交登录')
+        ?.click()
+    })
+
+    expect(auth.login).toHaveBeenCalledWith({ username: 'lihaichao', password: 'lihaichao' })
   })
 
-  it('展示登录中、已登录和失败状态', () => {
+  it('登录成功后关闭抽屉并展示登录头像', () => {
     const store = createConversationStore()
-    auth.isLoggingIn = true
     act(() => {
       root.render(
         <ConversationStoreProvider store={store}>
@@ -132,15 +158,12 @@ describe('ChatHeader', () => {
       )
     })
 
-    expect(host.textContent).toContain('登录中…')
-    expect(
-      [...host.querySelectorAll('button')].find((button) => button.textContent === '登录中…')
-        ?.disabled,
-    ).toBe(true)
+    act(() => {
+      ;[...host.querySelectorAll('button')].find((button) => button.textContent === '登录')?.click()
+    })
+    expect(host.querySelector('[role="dialog"]')).not.toBeNull()
 
-    auth.isLoggingIn = false
     auth.isAuthenticated = true
-    auth.error = '上一次错误'
     act(() => {
       root.render(
         <ConversationStoreProvider store={store}>
@@ -149,7 +172,10 @@ describe('ChatHeader', () => {
       )
     })
 
-    expect(host.textContent).toContain('已登录')
-    expect(host.querySelector('[role="alert"]')?.textContent).toBe('上一次错误')
+    expect(host.querySelector('[role="dialog"]')).toBeNull()
+    expect(host.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('当前账号已登录')
+    expect(
+      [...host.querySelectorAll('button')].some((button) => button.textContent === '登录'),
+    ).toBe(false)
   })
 })

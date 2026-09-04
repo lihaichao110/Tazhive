@@ -27,11 +27,11 @@ afterEach(() => {
 })
 
 describe('createHttpClient', () => {
-  it('开发环境统一使用 /api 前缀', () => {
+  it('开发环境使用相对地址，由调用方路径携带 /api 走 Vite 代理', () => {
     vi.stubEnv('MODE', 'development')
     const client = createHttpClient({ baseURL: 'https://api.example.com', timeout: 120_000 })
 
-    expect(client.defaults.baseURL).toBe('/api')
+    expect(client.defaults.baseURL).toBe('')
     expect(client.defaults.timeout).toBe(120_000)
     expect(client.defaults.responseType).toBe('json')
   })
