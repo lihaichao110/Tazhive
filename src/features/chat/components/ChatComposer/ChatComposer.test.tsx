@@ -172,14 +172,16 @@ describe('ChatComposer 附件与更多菜单', () => {
     expect(host.querySelector('[role="alert"]')).toBeNull()
   })
 
-  it('退格移除词槽后释放附件并恢复普通文本发送', () => {
-    const sendMessage = vi.fn(() => true)
+  it('退格移除词槽后释放附件并恢复普通文本发送', async () => {
+    const sendMessage = vi.fn(async () => true)
     renderComposer({ sendMessage })
     selectFile(new File(['x'], 'notes.md'))
     const textSlots: SlotConfigType[] = [{ type: 'text', value: '总结一下' }]
 
     act(() => getLatestSender().onChange?.('总结一下', undefined, textSlots))
-    act(() => getLatestSender().onSubmit?.('总结一下', textSlots))
+    await act(async () => {
+      getLatestSender().onSubmit?.('总结一下', textSlots)
+    })
 
     expect(sendMessage).toHaveBeenCalledWith('总结一下')
     expect(clearSenderMock).toHaveBeenCalledOnce()
@@ -187,7 +189,7 @@ describe('ChatComposer 附件与更多菜单', () => {
   })
 
   it('存在附件时阻止发送并保留提示', () => {
-    const sendMessage = vi.fn(() => true)
+    const sendMessage = vi.fn(async () => true)
     renderComposer({ sendMessage })
     selectFile(new File(['x'], 'data.csv'))
     const slots = getLatestSender().slotConfig ?? []
@@ -199,14 +201,28 @@ describe('ChatComposer 附件与更多菜单', () => {
     expect(host.querySelector('[role="alert"]')?.textContent).toContain('暂时无法随消息发送')
   })
 
-  it('无附件时保持原有文本发送和清空行为', () => {
-    const sendMessage = vi.fn(() => true)
+  it('无附件时保持原有文本发送和清空行为', async () => {
+    const sendMessage = vi.fn(async () => true)
     renderComposer({ sendMessage })
 
-    act(() => getLatestSender().onSubmit?.(' 你好 ', []))
+    await act(async () => {
+      getLatestSender().onSubmit?.(' 你好 ', [])
+    })
 
     expect(sendMessage).toHaveBeenCalledWith('你好')
     expect(clearSenderMock).toHaveBeenCalledOnce()
+  })
+
+  it('发送被拒绝时（如建线程失败）保留草稿不清空输入', async () => {
+    const sendMessage = vi.fn(async () => false)
+    renderComposer({ sendMessage })
+
+    await act(async () => {
+      getLatestSender().onSubmit?.(' 你好 ', [])
+    })
+
+    expect(sendMessage).toHaveBeenCalledWith('你好')
+    expect(clearSenderMock).not.toHaveBeenCalled()
   })
 
   it('回复期间禁用附件入口', () => {

@@ -9,7 +9,7 @@ export interface ChatSessionValue {
   readonly mode: ChatMode
   readonly quote: ChatQuote | null
   readonly setMode: (mode: ChatMode) => void
-  readonly sendMessage: (text: string) => boolean
+  readonly sendMessage: (text: string) => Promise<boolean>
   readonly abort: () => void
   readonly retry: (messageId: string) => void
   readonly submitInsurance: (submission: InsuranceSubmission) => void

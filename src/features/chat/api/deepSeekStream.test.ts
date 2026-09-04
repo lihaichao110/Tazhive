@@ -129,6 +129,24 @@ describe('DeepSeek SSE 流', () => {
     expect(error.message).toContain('401')
   })
 
+  it('聊天请求按当前线程 ID 重写接口地址', async () => {
+    const requestedUrls: string[] = []
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      requestedUrls.push(String(input))
+      return new Response('data: [DONE]\n\n', {
+        headers: { 'content-type': 'text/event-stream' },
+      })
+    })
+    const provider = createDeepSeekProvider(
+      { apiKey: 'test-key', baseUrl: 'https://example.com', modelName: 'deepseek-chat' },
+      { onError: () => undefined, onSuccess: () => undefined },
+    )
+    provider.request.run({ thread_id: 'thread-abc' })
+    await provider.request.asyncHandler
+
+    expect(requestedUrls).toEqual(['/api/v1/chat/thread-abc'])
+  })
+
   it('聊天请求动态携带当前登录令牌', async () => {
     let accessToken: string | null = 'access-token'
     cleanups.push(registerAccessTokenProvider(() => accessToken))

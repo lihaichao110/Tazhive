@@ -15,12 +15,12 @@ import {
   createInsuranceConfirmationMessage,
   createInsuranceConversationMessages,
 } from '../lib/insuranceMessages'
+import { formatRequestError } from '../lib/formatRequestError'
 import { INITIAL_MESSAGES } from '../model/initialMessages'
 import { DEFAULT_CHAT_MODE, toDeepSeekThinking } from '../model/chatMode'
 import { isInsuranceIntent } from '../model/insuranceCard'
 import type { ChatMessage, ChatMessageStatus, ChatQuote, InsuranceSubmission } from '../model/types'
 
-import { HttpError } from '@/shared/api'
 import { readDeepSeekConfig } from '@/shared/config'
 
 const DEEPSEEK_CONFIG_RESULT = readDeepSeekConfig()
@@ -31,15 +31,6 @@ const DEFAULT_MESSAGES: DefaultMessageInfo<DeepSeekMessage>[] = INITIAL_MESSAGES
   message: { role: message.role, content: serializeMessageContent(message.content) },
   status: message.status,
 }))
-
-// 将底层请求错误收敛为用户可理解且可操作的提示。
-function formatRequestError(error: Error): string {
-  if (error instanceof HttpError && error.status === 401) return error.message
-  if (error.message.includes('401')) return '登录状态已失效，请重新登录'
-  if (error.message.includes('429')) return 'DeepSeek 请求过于频繁，请稍后重试。'
-  if (error.message.includes('Timeout')) return 'DeepSeek 响应超时，请重试。'
-  return `DeepSeek 请求失败：${error.message}`
-}
 
 // 隔离 SDK 消息结构与页面领域模型，只有助手消息需要解析 Mermaid 内容块。
 function toChatMessage(info: MessageInfo<DeepSeekMessage>): ChatMessage {
@@ -64,7 +55,6 @@ export function useChat() {
   const config = DEEPSEEK_CONFIG_RESULT.config
 
   const handleRequestError = useCallback((error: Error) => {
-    console.log('请求超时：', error)
     requestInFlightRef.current = false
     if (error.name !== 'AbortError') setRequestError(formatRequestError(error))
   }, [])
@@ -109,10 +99,11 @@ export function useChat() {
     requestInFlightRef.current = isRequesting
   }, [isRequesting])
 
+  // threadId 是消息归属的服务端线程，新会话首条消息由上层先建线程后传入。
   const send = useCallback(
-    (rawText: string, quote?: ChatQuote): boolean => {
+    (rawText: string, quote: undefined | ChatQuote, threadId: string): boolean => {
       const content = rawText.trim()
-      if (!content || requestInFlightRef.current) return false
+      if (!content || requestInFlightRef.current || !threadId) return false
       if (isInsuranceIntent(content)) {
         setRequestError(null)
         setMessages((current) => [
@@ -135,6 +126,7 @@ export function useChat() {
       onRequest({
         messages: [{ role: 'user', content, quote }],
         thinking: toDeepSeekThinking(mode),
+        thread_id: threadId,
       })
       return true
     },
@@ -153,8 +145,8 @@ export function useChat() {
   }, [abortRequest])
 
   const retry = useCallback(
-    (messageId: string): void => {
-      if (requestInFlightRef.current || !provider) return
+    (messageId: string, threadId: string): void => {
+      if (requestInFlightRef.current || !provider || !threadId) return
 
       const failedIndex = sdkMessages.findIndex((info) => String(info.id) === messageId)
       // SDK 重试会重新插入用户消息，因此需要先找到失败回答对应的最近一次用户输入。
@@ -176,6 +168,7 @@ export function useChat() {
       onRequest({
         messages: [{ role: 'user', content, quote: previousUser.message.quote }],
         thinking: toDeepSeekThinking(mode),
+        thread_id: threadId,
       })
     },
     [mode, onRequest, provider, sdkMessages, setMessages],

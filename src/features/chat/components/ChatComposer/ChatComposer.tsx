@@ -192,14 +192,15 @@ export function ChatComposer() {
       const text = content.trim()
       // Sender 空值时禁用发送，这里兜底纯空白内容。
       if (!text) return
-      // 配置缺失或请求被拒绝时保留草稿，便于用户修复问题后重新发送。
-      if (sendMessage(text)) {
+      // 发送可能先经历首条消息建线程的异步等待；被拒绝时保留草稿，便于用户修复问题后重新发送。
+      void Promise.resolve(sendMessage(text)).then((accepted) => {
+        if (!accepted) return
         senderRef.current?.clear()
         setValue('')
         setEditorSlots([])
         setAttachment(null)
         setAttachmentNotice(null)
-      }
+      })
     },
     [attachment, sendMessage],
   )

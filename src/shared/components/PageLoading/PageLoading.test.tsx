@@ -14,4 +14,12 @@ describe('PageLoading', () => {
     expect(html).toContain('tazhive-running.png')
     expect(html).toContain('media="(prefers-reduced-motion: reduce)"')
   })
+
+  it('支持场景化文案与局部内容区形态', () => {
+    const html = renderToStaticMarkup(<PageLoading label="正在加载历史对话…" variant="inline" />)
+
+    expect(html).toContain('正在加载历史对话…')
+    expect(html).not.toContain('小塔正在赶来…')
+    expect(html).toContain('inline')
+  })
 })

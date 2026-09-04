@@ -50,6 +50,55 @@
   }
 }
 
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 48px 16px;
+  text-align: center;
+}
+
+.emptyTitle {
+  margin: 0;
+  color: var(--sidebar-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.emptyHint {
+  margin: 0;
+  color: var(--sidebar-text-secondary);
+  font-size: 12px;
+}
+
+.newConversationButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--sidebar-text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: var(--sidebar-surface-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sidebar-focus);
+    outline-offset: -2px;
+  }
+}
+
 .conversationList {
   display: flex;
   flex-direction: column;

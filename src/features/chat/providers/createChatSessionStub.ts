@@ -9,7 +9,7 @@ export function createChatSessionStub(overrides: Partial<ChatSessionValue> = {})
     mode: 'fast',
     quote: null,
     setMode: () => undefined,
-    sendMessage: () => false,
+    sendMessage: async () => false,
     abort: () => undefined,
     retry: () => undefined,
     submitInsurance: () => undefined,

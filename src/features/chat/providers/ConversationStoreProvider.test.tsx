@@ -26,7 +26,7 @@ describe('ConversationStoreProvider', () => {
   })
 
   it('selector 未变化时不会触发订阅组件重渲染', () => {
-    const store = createConversationStore(() => 'new-conversation')
+    const store = createConversationStore()
     let renderCount = 0
 
     function SidebarOpenObserver() {
@@ -44,7 +44,7 @@ describe('ConversationStoreProvider', () => {
     })
     expect(renderCount).toBe(1)
 
-    act(() => store.getState().createConversation('新项目讨论'))
+    act(() => store.getState().adoptConversation('server-thread', '新项目讨论'))
     expect(renderCount).toBe(1)
 
     act(() => store.getState().toggleSidebar())

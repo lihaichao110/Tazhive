@@ -43,3 +43,18 @@
   font-size: 14px;
   line-height: 1.5;
 }
+
+// 局部内容区形态：收窄占位与视觉尺寸，且不覆盖宿主容器背景。
+.inline {
+  min-height: 220px;
+  padding: 16px;
+  background: transparent;
+
+  .visual {
+    width: 88px;
+  }
+
+  .label {
+    font-size: 13px;
+  }
+}

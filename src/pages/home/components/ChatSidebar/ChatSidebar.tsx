@@ -1,17 +1,28 @@
 import { Drawer } from 'antd'
+import { SquarePen } from 'lucide-react'
 
 import styles from './ChatSidebar.module.scss'
 
-import { useConversationStore, useThreadList } from '@/features/chat'
+import { useChatSession, useConversationStore, useThreadList } from '@/features/chat'
+import { PageLoading } from '@/shared/components/PageLoading'
 
-// 提供覆盖式对话导航，仅订阅列表、选中项与抽屉动作。
+// 提供覆盖式对话导航：顶部新建入口 + 历史列表，仅订阅列表、选中项与抽屉动作。
 export function ChatSidebar() {
   const conversations = useConversationStore((state) => state.conversations)
   const selectedConversationId = useConversationStore((state) => state.selectedConversationId)
   const isOpen = useConversationStore((state) => state.isSidebarOpen)
   const closeSidebar = useConversationStore((state) => state.closeSidebar)
   const selectConversation = useConversationStore((state) => state.selectConversation)
+  const startNewConversation = useConversationStore((state) => state.startNewConversation)
   const { isLoading, errorMessage, reload } = useThreadList()
+  const { abort } = useChatSession()
+
+  // 新会话在首条消息发送时才创建线程，这里只需重置为空白会话并终止旧回复。
+  const handleStartNewConversation = () => {
+    abort()
+    startNewConversation()
+    closeSidebar()
+  }
 
   return (
     <Drawer
@@ -27,6 +38,14 @@ export function ChatSidebar() {
       onClose={closeSidebar}
     >
       <nav id="chat-conversation-sidebar" aria-label="历史对话">
+        <button
+          type="button"
+          className={styles.newConversationButton}
+          onClick={handleStartNewConversation}
+        >
+          <SquarePen size={16} aria-hidden="true" />
+          新对话
+        </button>
         {errorMessage ? (
           <p className={styles.listStatus} role="alert">
             {errorMessage}
@@ -35,9 +54,12 @@ export function ChatSidebar() {
             </button>
           </p>
         ) : isLoading ? (
-          <p className={styles.listStatus} role="status">
-            正在加载会话…
-          </p>
+          <PageLoading label="正在加载历史对话…" variant="inline" />
+        ) : conversations.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p className={styles.emptyTitle}>还没有对话记录</p>
+            <p className={styles.emptyHint}>点击上方「新对话」，开始你的第一段对话吧</p>
+          </div>
         ) : (
           <ul className={styles.conversationList}>
             {conversations.map((conversation) => {

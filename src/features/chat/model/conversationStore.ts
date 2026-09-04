@@ -1,7 +1,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
 
 export interface ConversationSummary {
-  /** 会话唯一标识。 */
+  /** 会话唯一标识，与服务端线程 ID 一致。 */
   readonly id: string
   /** 会话标题。 */
   readonly title: string
@@ -14,7 +14,7 @@ export interface ConversationSummary {
 interface ConversationNavigationState {
   /** 会话列表，按最近创建顺序排列。 */
   readonly conversations: readonly ConversationSummary[]
-  /** 当前选中的会话 ID。 */
+  /** 当前选中的会话 ID；空串表示尚未绑定服务端线程的新会话。 */
   readonly selectedConversationId: string
   /** 移动端会话侧边栏是否打开。 */
   readonly isSidebarOpen: boolean
@@ -23,8 +23,10 @@ interface ConversationNavigationState {
 }
 
 interface ConversationNavigationActions {
-  /** 创建、置顶并选中新会话。 */
-  readonly createConversation: (title: string) => void
+  /** 将当前聊天会话绑定到新建的服务端线程，不重建聊天会话状态。 */
+  readonly adoptConversation: (threadId: string, title: string) => void
+  /** 进入尚未绑定线程的新会话，重建聊天会话状态。 */
+  readonly startNewConversation: () => void
   /** 用服务端会话列表整体替换本地列表。 */
   readonly setConversations: (conversations: readonly ConversationSummary[]) => void
   /** 选中已有会话并关闭侧边栏。 */
@@ -40,73 +42,48 @@ interface ConversationNavigationActions {
 export type ConversationStore = ConversationNavigationState & ConversationNavigationActions
 export type ConversationStoreApi = StoreApi<ConversationStore>
 
-// 刷新页面后使用的默认会话数据。
-export const INITIAL_CONVERSATIONS: readonly ConversationSummary[] = [
-  {
-    id: 'product-roadmap',
-    title: '产品路线图讨论',
-    preview: '帮我整理下一季度的产品优先级',
-    updatedAt: '刚刚',
-  },
-  {
-    id: 'travel-plan',
-    title: '杭州周末旅行计划',
-    preview: '安排一个轻松的两日游行程',
-    updatedAt: '昨天',
-  },
-  {
-    id: 'react-review',
-    title: 'React 代码审查',
-    preview: '检查组件状态与渲染性能问题',
-    updatedAt: '8月24日',
-  },
-  {
-    id: 'weekly-summary',
-    title: '项目周报总结',
-    preview: '将本周工作整理成简洁的周报',
-    updatedAt: '8月21日',
-  },
-]
+// 首次使用或刷新后尚未拉取到服务端数据时，会话列表从空开始，由侧边栏拉取后填充。
+export const INITIAL_CONVERSATIONS: readonly ConversationSummary[] = []
 
 const INITIAL_STATE: ConversationNavigationState = {
   conversations: INITIAL_CONVERSATIONS,
-  selectedConversationId: INITIAL_CONVERSATIONS[0].id,
+  selectedConversationId: '',
   isSidebarOpen: false,
   sessionVersion: 0,
 }
 
-// 创建可注入 ID 生成器的会话导航 Store，便于 App 单例初始化与测试隔离。
-export function createConversationStore(
-  createId: () => string = () => crypto.randomUUID(),
-): ConversationStoreApi {
+// 新建线程尚未产生首条消息时的列表项占位内容。
+function createPendingSummary(threadId: string, title: string): ConversationSummary {
+  return { id: threadId, title, preview: '暂无消息', updatedAt: '刚刚' }
+}
+
+// 创建可独立实例化的会话导航 Store，便于 App 单例初始化与测试隔离。
+export function createConversationStore(): ConversationStoreApi {
   return createStore<ConversationStore>()((set, get) => ({
     ...INITIAL_STATE,
-    createConversation: (rawTitle) => {
+    // 首条消息自动建线程后绑定当前会话：不递增 sessionVersion，
+    // 否则聊天 Provider 会在消息发出前被重建，导致刚建立的会话状态丢失。
+    adoptConversation: (threadId, rawTitle) => {
       const title = rawTitle.trim()
-      if (!title) return
+      if (!title || !threadId) return
 
-      const conversation: ConversationSummary = {
-        id: createId(),
-        title,
-        preview: '暂无消息',
-        updatedAt: '刚刚',
-      }
       set((state) => ({
-        conversations: [conversation, ...state.conversations],
-        selectedConversationId: conversation.id,
-        sessionVersion: state.sessionVersion + 1,
+        conversations: [createPendingSummary(threadId, title), ...state.conversations],
+        selectedConversationId: threadId,
       }))
     },
-    // 服务端列表替换后保留当前选中项；选中项不在列表中时回退到首项，避免空选中。
+    // 进入新会话：清空选中并重建聊天子树；历史列表保留，供随时切回。
+    startNewConversation: () =>
+      set((state) => ({ selectedConversationId: '', sessionVersion: state.sessionVersion + 1 })),
+    // 服务端列表替换后保留当前选中项；空列表或选中项丢失时清空/回退，避免长期悬空选中。
     setConversations: (conversations) => {
-      if (conversations.length === 0) return
       set((state) => ({
         conversations,
         selectedConversationId: conversations.some(
           (conversation) => conversation.id === state.selectedConversationId,
         )
           ? state.selectedConversationId
-          : conversations[0].id,
+          : (conversations[0]?.id ?? ''),
       }))
     },
     selectConversation: (conversationId) => {

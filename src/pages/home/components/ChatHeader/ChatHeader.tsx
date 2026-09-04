@@ -1,41 +1,24 @@
 import { useEffect, useState } from 'react'
-import { PanelLeft, SquarePen, UserRound } from 'lucide-react'
+import { PanelLeft, UserRound } from 'lucide-react'
 
 import styles from './ChatHeader.module.scss'
 import { LoginDrawer } from './LoginDrawer'
-import { NewConversationModal } from './NewConversationModal'
 
-import {
-  requestCreateThread,
-  selectActiveConversationTitle,
-  useChatSession,
-  useConversationStore,
-} from '@/features/chat'
+import { selectActiveConversationTitle, useConversationStore } from '@/features/chat'
 import { useAuth } from '@/features/auth'
 
 // 展示聊天页顶部操作，并直接消费会话导航 Store 中与头部相关的最小状态切片。
 export function ChatHeader() {
-  const [isNewConversationOpen, setIsNewConversationOpen] = useState(false)
   const [isLoginDrawerOpen, setIsLoginDrawerOpen] = useState(false)
-  const activeConversationTitle = useConversationStore(selectActiveConversationTitle)
+  // 尚未绑定线程的新会话（含首次使用）以“新对话”作为标题兜底。
+  const activeConversationTitle = useConversationStore(selectActiveConversationTitle) || '新对话'
   const isSidebarOpen = useConversationStore((state) => state.isSidebarOpen)
-  const createConversation = useConversationStore((state) => state.createConversation)
   const toggleSidebar = useConversationStore((state) => state.toggleSidebar)
-  const { abort } = useChatSession()
   const { error: loginError, isAuthenticated, isLoggingIn, login } = useAuth()
 
   useEffect(() => {
     if (isAuthenticated) setIsLoginDrawerOpen(false)
   }, [isAuthenticated])
-
-  // 服务端创建成功后再切换本地会话，避免请求失败时产生仅存在于前端的记录。
-  const handleCreateConversation = async (title: string) => {
-    await requestCreateThread(title)
-    // 旧请求必须先终止，随后 sessionVersion 更新会重建聊天 Provider 子树。
-    abort()
-    createConversation(title)
-    setIsNewConversationOpen(false)
-  }
 
   return (
     <>
@@ -51,15 +34,6 @@ export function ChatHeader() {
             onClick={toggleSidebar}
           >
             <PanelLeft size={18} />
-          </button>
-          <button
-            type="button"
-            className={styles.iconButton}
-            aria-label="新建对话"
-            title="新建对话"
-            onClick={() => setIsNewConversationOpen(true)}
-          >
-            <SquarePen size={18} />
           </button>
         </div>
         <div className={styles.brand}>
@@ -90,11 +64,6 @@ export function ChatHeader() {
         isOpen={isLoginDrawerOpen}
         onClose={() => setIsLoginDrawerOpen(false)}
         onLogin={login}
-      />
-      <NewConversationModal
-        isOpen={isNewConversationOpen}
-        onCancel={() => setIsNewConversationOpen(false)}
-        onConfirm={handleCreateConversation}
       />
     </>
   )

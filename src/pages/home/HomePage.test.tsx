@@ -56,7 +56,7 @@ describe('HomePage', () => {
   })
 
   it('会话重置版本变化后重建聊天 Provider', () => {
-    const store = createConversationStore(() => 'new-conversation')
+    const store = createConversationStore()
     act(() => {
       root.render(
         <ConversationStoreProvider store={store}>
@@ -68,7 +68,7 @@ describe('HomePage', () => {
       host.querySelector('[data-provider-instance]')?.getAttribute('data-provider-instance'),
     ).toBe('1')
 
-    act(() => store.getState().createConversation('新项目讨论'))
+    act(() => store.getState().startNewConversation())
 
     expect(
       host.querySelector('[data-provider-instance]')?.getAttribute('data-provider-instance'),
