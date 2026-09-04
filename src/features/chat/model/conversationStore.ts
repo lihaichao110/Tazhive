@@ -25,6 +25,8 @@ interface ConversationNavigationState {
 interface ConversationNavigationActions {
   /** 创建、置顶并选中新会话。 */
   readonly createConversation: (title: string) => void
+  /** 用服务端会话列表整体替换本地列表。 */
+  readonly setConversations: (conversations: readonly ConversationSummary[]) => void
   /** 选中已有会话并关闭侧边栏。 */
   readonly selectConversation: (conversationId: string) => void
   /** 切换侧边栏开关状态。 */
@@ -93,6 +95,18 @@ export function createConversationStore(
         conversations: [conversation, ...state.conversations],
         selectedConversationId: conversation.id,
         sessionVersion: state.sessionVersion + 1,
+      }))
+    },
+    // 服务端列表替换后保留当前选中项；选中项不在列表中时回退到首项，避免空选中。
+    setConversations: (conversations) => {
+      if (conversations.length === 0) return
+      set((state) => ({
+        conversations,
+        selectedConversationId: conversations.some(
+          (conversation) => conversation.id === state.selectedConversationId,
+        )
+          ? state.selectedConversationId
+          : conversations[0].id,
       }))
     },
     selectConversation: (conversationId) => {

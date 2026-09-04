@@ -12,6 +12,7 @@ import type { DeepSeekThinkingConfig } from '../model/chatMode'
 import type { ChatQuote, ChatRole } from '../model/types'
 
 import type { DeepSeekConfig } from '@/shared/config'
+import { getAccessToken, HttpError, reportAccessTokenRejected } from '@/shared/api'
 
 export interface DeepSeekMessage extends XModelMessage {
   readonly role: ChatRole
@@ -55,6 +56,25 @@ function buildCompletionsUrl(baseUrl: string): string {
   return `${baseUrl.replace(/\/$/, '')}`
 }
 
+// 聊天流绕过 Axios 客户端，因此在 fetch 边界动态注入令牌并同步处理会话失效。
+async function fetchChatStream(
+  input: RequestInfo | URL,
+  options: XRequestOptions<DeepSeekRequestParams, SSEOutput>,
+): Promise<Response> {
+  const accessToken = getAccessToken()
+  const headers = new Headers(options.headers)
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+  else headers.delete('Authorization')
+
+  const response = await globalThis.fetch(input, { ...options, headers })
+  if (response.status === 401) {
+    // 使用本次请求实际携带的令牌，避免延迟响应清除后来建立的新会话。
+    reportAccessTokenRejected(accessToken)
+    throw new HttpError('登录状态已失效，请重新登录', { status: 401 })
+  }
+  return response
+}
+
 // 将项目配置转换为 X SDK Provider，并把请求生命周期回传给上层 Hook 管理界面状态。
 export function createDeepSeekProvider(
   config: DeepSeekConfig,
@@ -62,8 +82,8 @@ export function createDeepSeekProvider(
 ): DeepSeekChatProvider<DeepSeekMessage, DeepSeekRequestParams, SSEOutput> {
   // XRequest 只负责传输和流解析；对话消息的组织、重试与错误展示由 useChat 统一处理。
   const request = XRequest<DeepSeekRequestParams, SSEOutput, DeepSeekMessage>(
-    buildCompletionsUrl(config.baseUrl) + '/chat/completions',
-    // buildCompletionsUrl('/api/v1/chat/956a7332-9216-4011-9aa4-fb4b0bb8cf1f'),
+    // buildCompletionsUrl(config.baseUrl) + '/chat/completions',
+    buildCompletionsUrl('/api/v1/chat/956a7332-9216-4011-9aa4-fb4b0bb8cf1f'),
     {
       manual: true,
       params: {
@@ -71,7 +91,7 @@ export function createDeepSeekProvider(
         stream: true,
         thinking: { type: 'disabled' },
       },
-      headers: { Authorization: `Bearer ${config.apiKey}` },
+      fetch: fetchChatStream,
       timeout: 30_000,
       streamTimeout: 30_000,
       callbacks: {

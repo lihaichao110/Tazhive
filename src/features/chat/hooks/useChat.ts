@@ -20,6 +20,7 @@ import { DEFAULT_CHAT_MODE, toDeepSeekThinking } from '../model/chatMode'
 import { isInsuranceIntent } from '../model/insuranceCard'
 import type { ChatMessage, ChatMessageStatus, ChatQuote, InsuranceSubmission } from '../model/types'
 
+import { HttpError } from '@/shared/api'
 import { readDeepSeekConfig } from '@/shared/config'
 
 const DEEPSEEK_CONFIG_RESULT = readDeepSeekConfig()
@@ -33,7 +34,8 @@ const DEFAULT_MESSAGES: DefaultMessageInfo<DeepSeekMessage>[] = INITIAL_MESSAGES
 
 // 将底层请求错误收敛为用户可理解且可操作的提示。
 function formatRequestError(error: Error): string {
-  if (error.message.includes('401')) return 'DeepSeek 鉴权失败，请检查 API Key。'
+  if (error instanceof HttpError && error.status === 401) return error.message
+  if (error.message.includes('401')) return '登录状态已失效，请重新登录'
   if (error.message.includes('429')) return 'DeepSeek 请求过于频繁，请稍后重试。'
   if (error.message.includes('Timeout')) return 'DeepSeek 响应超时，请重试。'
   return `DeepSeek 请求失败：${error.message}`

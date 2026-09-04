@@ -6,6 +6,7 @@ import { LoginDrawer } from './LoginDrawer'
 import { NewConversationModal } from './NewConversationModal'
 
 import {
+  requestCreateThread,
   selectActiveConversationTitle,
   useChatSession,
   useConversationStore,
@@ -27,7 +28,9 @@ export function ChatHeader() {
     if (isAuthenticated) setIsLoginDrawerOpen(false)
   }, [isAuthenticated])
 
-  const handleCreateConversation = (title: string) => {
+  // 服务端创建成功后再切换本地会话，避免请求失败时产生仅存在于前端的记录。
+  const handleCreateConversation = async (title: string) => {
+    await requestCreateThread(title)
     // 旧请求必须先终止，随后 sessionVersion 更新会重建聊天 Provider 子树。
     abort()
     createConversation(title)

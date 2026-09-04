@@ -8,7 +8,7 @@ import { ChatHeader } from './ChatHeader'
 
 import { ConversationStoreProvider, createConversationStore } from '@/features/chat'
 
-const { abort, auth } = vi.hoisted(() => ({
+const { abort, auth, requestCreateThread } = vi.hoisted(() => ({
   abort: vi.fn(),
   auth: {
     error: null as string | null,
@@ -16,6 +16,7 @@ const { abort, auth } = vi.hoisted(() => ({
     isLoggingIn: false,
     login: vi.fn(async () => undefined),
   },
+  requestCreateThread: vi.fn(async () => undefined),
 }))
 
 vi.mock('@/features/auth', () => ({ useAuth: () => auth }))
@@ -24,6 +25,7 @@ vi.mock('@/features/chat', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/features/chat')>()
   return {
     ...actual,
+    requestCreateThread,
     useChatSession: () => ({ abort }),
   }
 })
@@ -54,10 +56,13 @@ vi.mock('./NewConversationModal', () => ({
     onConfirm,
   }: {
     isOpen: boolean
-    onConfirm: (title: string) => void
+    onConfirm: (title: string) => void | Promise<void>
   }) =>
     isOpen ? (
-      <button type="button" onClick={() => onConfirm('  新项目讨论  ')}>
+      <button
+        type="button"
+        onClick={() => void Promise.resolve(onConfirm('  新项目讨论  ')).catch(() => undefined)}
+      >
         确认创建
       </button>
     ) : null,
@@ -70,6 +75,8 @@ describe('ChatHeader', () => {
   beforeEach(() => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
     abort.mockClear()
+    requestCreateThread.mockReset()
+    requestCreateThread.mockResolvedValue(undefined)
     auth.error = null
     auth.isAuthenticated = false
     auth.isLoggingIn = false
@@ -102,7 +109,7 @@ describe('ChatHeader', () => {
     expect(sidebarButton?.getAttribute('aria-expanded')).toBe('true')
   })
 
-  it('创建会话前终止旧回复并同步 Store 标题', () => {
+  it('服务端创建会话成功后终止旧回复并同步 Store 标题', async () => {
     const store = createConversationStore(() => 'new-conversation')
     act(() => {
       root.render(
@@ -113,15 +120,40 @@ describe('ChatHeader', () => {
     })
 
     act(() => host.querySelector<HTMLButtonElement>('[aria-label="新建对话"]')?.click())
-    act(() => {
+    await act(async () => {
       ;[...host.querySelectorAll('button')]
         .find((button) => button.textContent === '确认创建')
         ?.click()
     })
 
+    expect(requestCreateThread).toHaveBeenCalledWith('  新项目讨论  ')
     expect(abort).toHaveBeenCalledOnce()
     expect(store.getState().sessionVersion).toBe(1)
     expect(host.textContent).toContain('新项目讨论')
+  })
+
+  it('服务端创建会话失败时保留弹窗且不更新本地会话', async () => {
+    const store = createConversationStore(() => 'new-conversation')
+    requestCreateThread.mockRejectedValueOnce(new Error('创建失败'))
+    act(() => {
+      root.render(
+        <ConversationStoreProvider store={store}>
+          <ChatHeader />
+        </ConversationStoreProvider>,
+      )
+    })
+
+    act(() => host.querySelector<HTMLButtonElement>('[aria-label="新建对话"]')?.click())
+    await act(async () => {
+      ;[...host.querySelectorAll('button')]
+        .find((button) => button.textContent === '确认创建')
+        ?.click()
+      await Promise.resolve()
+    })
+
+    expect(abort).not.toHaveBeenCalled()
+    expect(store.getState().sessionVersion).toBe(0)
+    expect(host.textContent).toContain('确认创建')
   })
 
   it('点击登录按钮打开抽屉并通过表单调用认证能力', () => {

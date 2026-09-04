@@ -9,7 +9,12 @@ import {
   type DeepSeekRequestParams,
 } from './deepSeekProvider'
 
+import { registerAccessTokenProvider, registerAccessTokenRejectedHandler } from '@/shared/api'
+
+const cleanups: Array<() => void> = []
+
 afterEach(() => {
+  cleanups.splice(0).forEach((cleanup) => cleanup())
   vi.unstubAllGlobals()
 })
 
@@ -124,7 +129,9 @@ describe('DeepSeek SSE 流', () => {
     expect(error.message).toContain('401')
   })
 
-  it('聊天请求携带 DeepSeek API Key', async () => {
+  it('聊天请求动态携带当前登录令牌', async () => {
+    let accessToken: string | null = 'access-token'
+    cleanups.push(registerAccessTokenProvider(() => accessToken))
     let authorization: string | null = null
     vi.stubGlobal('fetch', async (_input: RequestInfo | URL, options?: RequestInit) => {
       authorization = new Headers(options?.headers).get('Authorization')
@@ -136,10 +143,35 @@ describe('DeepSeek SSE 流', () => {
       { apiKey: 'test-key', baseUrl: 'https://example.com', modelName: 'deepseek-chat' },
       { onError: () => undefined, onSuccess: () => undefined },
     )
+    accessToken = 'renewed-token'
     provider.request.run({})
     await provider.request.asyncHandler
 
-    expect(authorization).toBe('Bearer test-key')
+    expect(authorization).toBe('Bearer renewed-token')
+  })
+
+  it('聊天请求收到 401 后上报被拒令牌并返回正确提示', async () => {
+    const rejectedTokens: string[] = []
+    cleanups.push(registerAccessTokenProvider(() => 'expired-token'))
+    cleanups.push(
+      registerAccessTokenRejectedHandler((accessToken) => rejectedTokens.push(accessToken)),
+    )
+    vi.stubGlobal('fetch', async () => new Response(undefined, { status: 401 }))
+
+    const error = await new Promise<Error>((resolve) => {
+      const provider = createDeepSeekProvider(
+        { apiKey: 'test-key', baseUrl: 'https://example.com', modelName: 'deepseek-chat' },
+        { onError: resolve, onSuccess: () => undefined },
+      )
+      provider.request.run({})
+    })
+
+    expect(rejectedTokens).toEqual(['expired-token'])
+    expect(error).toMatchObject({
+      name: 'HttpError',
+      message: '登录状态已失效，请重新登录',
+      status: 401,
+    })
   })
 
   it('取消请求返回 AbortError', async () => {

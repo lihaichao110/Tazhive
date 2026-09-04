@@ -8,6 +8,7 @@ import { NewConversationModal } from './NewConversationModal'
 
 interface MockModalProps {
   readonly children: ReactNode
+  readonly confirmLoading?: boolean
   readonly okButtonProps?: { readonly disabled?: boolean }
   readonly open?: boolean
   readonly onCancel?: () => void
@@ -27,14 +28,19 @@ vi.mock('antd', () => ({
       }}
     />
   ),
-  Modal: ({ children, okButtonProps, open, onCancel, onOk }: MockModalProps) =>
+  Modal: ({ children, confirmLoading, okButtonProps, open, onCancel, onOk }: MockModalProps) =>
     open ? (
       <div role="dialog">
         {children}
         <button type="button" onClick={onCancel}>
           取消
         </button>
-        <button type="button" disabled={okButtonProps?.disabled} onClick={onOk}>
+        <button
+          type="button"
+          aria-busy={confirmLoading}
+          disabled={okButtonProps?.disabled || confirmLoading}
+          onClick={onOk}
+        >
           确认
         </button>
       </div>
@@ -50,6 +56,24 @@ function changeTitle(value: string): void {
   valueSetter?.call(input, value)
   input?.dispatchEvent(new Event('input', { bubbles: true }))
   input?.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
+function createDeferred(): {
+  readonly promise: Promise<void>
+  readonly resolve: () => void
+  readonly reject: (error: unknown) => void
+} {
+  let resolvePromise: (() => void) | undefined
+  let rejectPromise: ((error: unknown) => void) | undefined
+  const promise = new Promise<void>((resolve, reject) => {
+    resolvePromise = resolve
+    rejectPromise = reject
+  })
+  return {
+    promise,
+    resolve: () => resolvePromise?.(),
+    reject: (error) => rejectPromise?.(error),
+  }
 }
 
 describe('NewConversationModal', () => {
@@ -106,5 +130,50 @@ describe('NewConversationModal', () => {
 
     expect(onCancel).toHaveBeenCalledOnce()
     expect(host.querySelector<HTMLInputElement>('input')?.value).toBe('')
+  })
+
+  it('创建期间展示加载状态并阻止重复提交', async () => {
+    const deferred = createDeferred()
+    const onConfirm = vi.fn(() => deferred.promise)
+    act(() => {
+      root.render(<NewConversationModal isOpen onCancel={() => undefined} onConfirm={onConfirm} />)
+    })
+    act(() => changeTitle('新项目讨论'))
+    const confirmButton = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent === '确认',
+    )
+
+    act(() => confirmButton?.click())
+    expect(confirmButton?.getAttribute('aria-busy')).toBe('true')
+    expect(confirmButton?.disabled).toBe(true)
+    act(() => confirmButton?.click())
+    expect(onConfirm).toHaveBeenCalledOnce()
+
+    await act(async () => deferred.resolve())
+    expect(confirmButton?.getAttribute('aria-busy')).toBe('false')
+  })
+
+  it('创建失败后结束加载并保留标题', async () => {
+    const deferred = createDeferred()
+    act(() => {
+      root.render(
+        <NewConversationModal
+          isOpen
+          onCancel={() => undefined}
+          onConfirm={() => deferred.promise}
+        />,
+      )
+    })
+    act(() => changeTitle('新项目讨论'))
+    const confirmButton = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent === '确认',
+    )
+
+    act(() => confirmButton?.click())
+    await act(async () => deferred.reject(new Error('创建失败')))
+
+    expect(confirmButton?.getAttribute('aria-busy')).toBe('false')
+    expect(confirmButton?.disabled).toBe(false)
+    expect(host.querySelector<HTMLInputElement>('input')?.value).toBe('新项目讨论')
   })
 })
