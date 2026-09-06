@@ -6,6 +6,8 @@ export interface ChatSessionValue {
   readonly messages: readonly ChatMessage[]
   readonly isReplying: boolean
   readonly error: string | null
+  /** 登录恢复后清除旧会话遗留的错误提示。 */
+  readonly clearError: () => void
   readonly mode: ChatMode
   readonly quote: ChatQuote | null
   readonly setMode: (mode: ChatMode) => void

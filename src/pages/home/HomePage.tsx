@@ -14,12 +14,15 @@ import {
   useConversationStore,
   type DynamicCardReadyHandler,
 } from '@/features/chat'
+import { useAuth } from '@/features/auth'
 
 // 组合聊天页各区域，并协调流式回复、错误提示和自动滚动等页面级行为。
 function HomePageContent() {
-  const { messages, isReplying, error } = useChatSession()
+  const { messages, isReplying, error, clearError } = useChatSession()
+  const { isAuthenticated } = useAuth()
   const scrollAreaRef = useRef<HTMLElement>(null)
   const handledSurfaceIdsRef = useRef(new Set<string>())
+  const wasAuthenticatedRef = useRef(isAuthenticated)
   // 流式文本已经可见时不再显示输入动画，避免同时出现两种“正在回复”反馈。
   const isStreamingContentVisible = messages.some(
     (message) =>
@@ -40,6 +43,12 @@ function HomePageContent() {
     if (!scrollArea) return
     scrollArea.scrollTop = scrollArea.scrollHeight
   }, [messages, isReplying])
+
+  // 仅响应一次真实的登录成功转换；初次读取本地令牌时不应清除既有错误状态。
+  useEffect(() => {
+    if (!wasAuthenticatedRef.current && isAuthenticated) clearError()
+    wasAuthenticatedRef.current = isAuthenticated
+  }, [clearError, isAuthenticated])
 
   return (
     <div className={styles.chatPage}>

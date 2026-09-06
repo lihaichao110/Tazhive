@@ -12,7 +12,13 @@ interface ChatSessionProviderProps {
 // 在当前聊天页面内聚合会话状态与业务动作，避免展示组件跨层透传参数。
 export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
   const chat = useChat()
-  const { error: bootstrapError, ensureThread, getThreadId, isPreparing } = useThreadBootstrap()
+  const {
+    error: bootstrapError,
+    clearError: clearBootstrapError,
+    ensureThread,
+    getThreadId,
+    isPreparing,
+  } = useThreadBootstrap()
   const [quote, setQuote] = useState<ChatQuote | null>(null)
 
   // 新会话首条消息先建线程再发送；建线程失败则拒绝发送，让用户保留草稿重试。
@@ -38,12 +44,19 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
 
   const clearQuote = useCallback(() => setQuote(null), [])
 
+  // 登录成功后同步清理两条请求链路，避免旧会话错误在新令牌下继续显示。
+  const clearError = useCallback((): void => {
+    chat.clearError()
+    clearBootstrapError()
+  }, [chat, clearBootstrapError])
+
   const value = useMemo<ChatSessionValue>(
     () => ({
       messages: chat.messages,
       // 建线程等待期与流式回复期统一呈现“回复中”，避免点击发送后界面看似卡住。
       isReplying: chat.isReplying || isPreparing,
       error: chat.error ?? bootstrapError,
+      clearError,
       mode: chat.mode,
       quote,
       setMode: chat.setMode,
@@ -54,7 +67,7 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
       selectQuote: setQuote,
       clearQuote,
     }),
-    [bootstrapError, chat, clearQuote, isPreparing, quote, retry, sendMessage],
+    [bootstrapError, chat, clearError, clearQuote, isPreparing, quote, retry, sendMessage],
   )
 
   return <ChatSessionContext.Provider value={value}>{children}</ChatSessionContext.Provider>

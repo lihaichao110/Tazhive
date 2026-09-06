@@ -10,6 +10,8 @@ import { ConversationStoreContext } from '../providers/ConversationStoreContext'
  */
 export interface ThreadBootstrap {
   readonly error: string | null
+  /** 重新登录后清除旧会话的建会话失败提示。 */
+  readonly clearError: () => void
   /** 首条消息建线程请求进行中，需要向用户呈现与“回复中”一致的加载反馈。 */
   readonly isPreparing: boolean
   readonly ensureThread: (firstMessage: string) => Promise<null | string>
@@ -56,5 +58,10 @@ export function useThreadBootstrap(): ThreadBootstrap {
 
   const getThreadId = useCallback(() => store.getState().selectedConversationId, [store])
 
-  return { error, isPreparing, ensureThread, getThreadId }
+  // 认证恢复后，之前建会话请求的失败结果不能继续作为当前会话错误展示。
+  const clearError = useCallback((): void => {
+    setError(null)
+  }, [])
+
+  return { error, clearError, isPreparing, ensureThread, getThreadId }
 }

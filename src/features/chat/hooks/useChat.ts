@@ -64,6 +64,11 @@ export function useChat() {
     setRequestError(null)
   }, [])
 
+  // 登录成功后，旧会话请求遗留的错误已不再对应当前令牌，应统一清空。
+  const clearError = useCallback((): void => {
+    setRequestError(null)
+  }, [])
+
   const provider = useMemo(
     () =>
       config
@@ -178,6 +183,7 @@ export function useChat() {
     messages: sdkMessages.map(toChatMessage),
     isReplying: isRequesting,
     error: requestError ?? DEEPSEEK_CONFIG_RESULT.error,
+    clearError,
     mode,
     setMode,
     send,

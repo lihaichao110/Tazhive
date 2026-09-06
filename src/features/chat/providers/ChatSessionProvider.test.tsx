@@ -16,6 +16,7 @@ import {
 const { chatMocks, requestCreateThread } = vi.hoisted(() => ({
   chatMocks: {
     abort: vi.fn(),
+    clearError: vi.fn(),
     retry: vi.fn(),
     send: vi.fn(),
     setMode: vi.fn(),
@@ -57,6 +58,9 @@ function SessionHarness() {
       </button>
       <button type="button" onClick={session.clearQuote}>
         清除引用
+      </button>
+      <button type="button" onClick={session.clearError}>
+        清除错误
       </button>
       <button type="button" onClick={() => void session.sendMessage('继续解释')}>
         发送
@@ -166,6 +170,18 @@ describe('ChatSessionProvider', () => {
 
     expect(chatMocks.send).not.toHaveBeenCalled()
     expect(host.querySelector('[data-error]')?.textContent).toContain('网络连接异常')
+  })
+
+  it('登录恢复后清除建会话遗留错误', async () => {
+    requestCreateThread.mockRejectedValue(new Error('会话令牌无效'))
+    click(host, '发送')
+    await act(async () => {})
+    expect(host.querySelector('[data-error]')?.textContent).toBe('会话令牌无效')
+
+    click(host, '清除错误')
+
+    expect(chatMocks.clearError).toHaveBeenCalledOnce()
+    expect(host.querySelector('[data-error]')?.textContent).toBe('无错误')
   })
 
   it('发送成功后清除引用并把引用写入发送参数', async () => {
