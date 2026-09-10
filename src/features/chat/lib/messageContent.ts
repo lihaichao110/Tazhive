@@ -126,10 +126,11 @@ export function parseAssistantMessageContent(
   const isStreaming = status === 'loading' || status === 'updating'
   const openMatch = THINK_OPEN_PATTERN.exec(rawContent)
   if (!openMatch || openMatch.index === undefined) {
-    if (isStreaming) return [{ type: 'protocol-loading' }]
     return (
-      parseChartResponseEnvelope(rawContent, { parseText: parseAnswerContent }) ??
-      parseAnswerContent(rawContent)
+      parseChartResponseEnvelope(rawContent, {
+        parseText: parseAnswerContent,
+        streaming: isStreaming,
+      }) ?? parseAnswerContent(rawContent)
     )
   }
 
@@ -149,13 +150,12 @@ export function parseAssistantMessageContent(
   if (completed) {
     const answerStart = closeIndex + THINK_CLOSE_TAG.length
     const answerText = rawContent.slice(answerStart).replace(/^(?:\r?\n){0,2}/, '')
-    if (isStreaming) content.push({ type: 'protocol-loading' })
-    else {
-      content.push(
-        ...(parseChartResponseEnvelope(answerText, { parseText: parseAnswerContent }) ??
-          parseAnswerContent(answerText)),
-      )
-    }
+    content.push(
+      ...(parseChartResponseEnvelope(answerText, {
+        parseText: parseAnswerContent,
+        streaming: isStreaming,
+      }) ?? parseAnswerContent(answerText)),
+    )
   }
 
   return content
@@ -183,8 +183,6 @@ export function serializeMessageContent(content: readonly ChatMessageContent[]):
           return `{{chart:${block.chart.chartId}}}`
         case 'chart-error':
           return block.message
-        case 'protocol-loading':
-          return ''
         case 'dynamic-card':
           return `\`\`\`a2ui\n${JSON.stringify({
             surfaceId: block.surfaceId,

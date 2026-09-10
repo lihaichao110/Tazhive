@@ -90,19 +90,15 @@ describe('ChatMessageContent', () => {
     expect(loadingIndex).toBeLessThan(markup.indexOf('图表后的回答'))
   })
 
-  it('展示协议加载和局部图表错误状态', () => {
+  it('展示局部图表错误状态', () => {
     const markup = renderToStaticMarkup(
       <ChatMessageContent
-        content={[
-          { type: 'protocol-loading' },
-          { type: 'chart-error', message: '图表数据暂不可用。' },
-        ]}
+        content={[{ type: 'chart-error', message: '图表数据暂不可用。' }]}
         role="assistant"
         status="updating"
       />,
     )
 
-    expect(markup).toContain('正在生成回答…')
     expect(markup).toContain('图表数据暂不可用。')
     expect(markup).not.toContain('data-response-chart-preview')
   })

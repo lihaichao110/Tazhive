@@ -72,12 +72,6 @@ function renderContent(
           {content.message}
         </p>
       )
-    case 'protocol-loading':
-      return (
-        <p key={`protocol-loading-${index}`} className={styles.contentLoading} role="status">
-          正在生成回答…
-        </p>
-      )
     case 'text': {
       if (role === 'assistant') {
         const streaming = isActiveStreamingBlock(role, status, index, lastIndex)

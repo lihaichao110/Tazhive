@@ -55,6 +55,7 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
       messages: chat.messages,
       // 建线程等待期与流式回复期统一呈现“回复中”，避免点击发送后界面看似卡住。
       isReplying: chat.isReplying || isPreparing,
+      isSlow: chat.isSlow,
       error: chat.error ?? bootstrapError,
       clearError,
       mode: chat.mode,

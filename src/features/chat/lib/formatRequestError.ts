@@ -16,7 +16,7 @@ export function formatRequestError(error: Error): string {
       ? 'AI 服务响应超时，请重试。'
       : `AI 服务异常：${error.message}`
   }
-  if (error instanceof HttpError && error.status === 401) return error.message
+  if (error instanceof HttpError) return error.message
   if (error.message.includes('401')) return EXPIRED_LOGIN_ERROR_MESSAGE
   if (error.message.includes('429')) return 'DeepSeek 请求过于频繁，请稍后重试。'
   if (error.message.includes('Timeout')) return 'DeepSeek 响应超时，请重试。'

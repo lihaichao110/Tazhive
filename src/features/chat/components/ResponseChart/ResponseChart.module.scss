@@ -22,6 +22,17 @@
   height: 260px;
 }
 
+// Tooltip 留在图表容器内，百分比上限随容器缩放，包含自身边框和内边距。
+.tooltip {
+  box-sizing: border-box;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  // ECharts 通过内联样式设置 nowrap，需要显式覆盖才能折行。
+  white-space: normal !important;
+}
+
 @media (width <= 720px) {
   .chart {
     height: 240px;

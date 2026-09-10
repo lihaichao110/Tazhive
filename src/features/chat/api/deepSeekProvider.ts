@@ -1,12 +1,14 @@
 import {
   DeepSeekChatProvider,
-  XRequest,
   type SSEOutput,
   type TransformMessage,
   type XRequestOptions,
   type XModelMessage,
   type XModelParams,
 } from '@ant-design/x-sdk'
+
+import { createChatRequest } from './createChatRequest'
+import { readChatHttpError } from './readChatHttpError'
 
 import { serializeQuotedPrompt } from '../lib/quoteMessage'
 import type { DeepSeekThinkingConfig } from '../model/chatMode'
@@ -31,6 +33,7 @@ export interface DeepSeekRequestParams extends XModelParams {
 interface DeepSeekProviderCallbacks {
   readonly onError: (error: Error) => void
   readonly onSuccess: () => void
+  readonly onSlowChange?: (isSlow: boolean) => void
 }
 
 /** 后端在 HTTP 200 载荷（SSE data 或 JSON 体）中携带的业务级错误，原文保留以便诊断。 */
@@ -95,7 +98,7 @@ class QuotedDeepSeekChatProvider extends DeepSeekChatProvider<
   override transformMessage(info: TransformMessage<DeepSeekMessage, SSEOutput>): DeepSeekMessage {
     // SDK 基类只消费 choices[].delta，会把 200 载荷里的 error 字段静默吞成空回复；
     // 必须在此拦截并抛错，让错误沿 onUpdate 的调用链进入 onError，
-    // 从而触发失败气泡、重试按钮与页面横幅，而不是展示一条"成功的"空消息。
+    // 从而触发失败气泡与重试按钮，而不是展示一条"成功的"空消息。
     const upstreamMessage = readUpstreamErrorMessage(info.chunk, info.responseHeaders)
     if (upstreamMessage) throw new ChatUpstreamError(upstreamMessage)
     return super.transformMessage(info)
@@ -125,11 +128,14 @@ async function fetchChatStream(
   const requestUrl = threadId ? buildChatUrl(threadId) : input
 
   const response = await globalThis.fetch(requestUrl, { ...options, headers })
+  // 已取消的旧请求不得触发登录失效或处理迟到的后端响应。
+  options.signal?.throwIfAborted()
   if (response.status === 401) {
     // 使用本次请求实际携带的令牌，避免延迟响应清除后来建立的新会话。
     reportAccessTokenRejected(accessToken)
     throw new HttpError('登录状态已失效，请重新登录', { status: 401 })
   }
+  if (!response.ok) throw await readChatHttpError(response)
   return response
 }
 
@@ -140,21 +146,23 @@ export function createDeepSeekProvider(
 ): DeepSeekChatProvider<DeepSeekMessage, DeepSeekRequestParams, SSEOutput> {
   // XRequest 只负责传输和流解析；对话消息的组织、重试与错误展示由 useChat 统一处理。
   // 地址仅为兜底基路径，实际请求地址在 fetch 边界按线程 ID 重写。
-  const request = XRequest<DeepSeekRequestParams, SSEOutput, DeepSeekMessage>(CHAT_ENDPOINT, {
-    manual: true,
-    params: {
-      model: config.modelName,
-      stream: true,
-      thinking: { type: 'disabled' },
+  const request = createChatRequest(
+    CHAT_ENDPOINT,
+    {
+      manual: true,
+      params: {
+        model: config.modelName,
+        stream: true,
+        thinking: { type: 'disabled' },
+      },
+      fetch: fetchChatStream,
+      callbacks: {
+        onError: callbacks.onError,
+        onSuccess: callbacks.onSuccess,
+      },
     },
-    fetch: fetchChatStream,
-    timeout: 30_000,
-    streamTimeout: 30_000,
-    callbacks: {
-      onError: callbacks.onError,
-      onSuccess: callbacks.onSuccess,
-    },
-  })
+    callbacks.onSlowChange,
+  )
 
   return new QuotedDeepSeekChatProvider({ request })
 }

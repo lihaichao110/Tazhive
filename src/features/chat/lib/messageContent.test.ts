@@ -103,23 +103,78 @@ describe('parseAssistantMessageContent', () => {
     ])
   })
 
-  it.each(['{"content":', '{"content":"正文"}', '```json\n{broken}\n```'])(
-    '明显属于协议但无效时隐藏原始内容：%s',
+  it.each(['{"content":', '{"content":42,"charts":[]}', '```json\n{"content":\n```'])(
+    '无效协议按原始文本显示，避免吞掉后端响应：%s',
     (rawContent) => {
-      expect(parseAssistantMessageContent(rawContent)).toEqual([
-        { type: 'chart-error', message: '回答格式异常，请重试。' },
-      ])
+      expect(parseAssistantMessageContent(rawContent)).toEqual([{ type: 'text', text: rawContent }])
     },
   )
 
-  it.each(['', '{"content":', '{"content":"完整但状态未结束","charts":[]}'])(
-    '流式阶段不暴露协议内容：%s',
-    (rawContent) => {
-      expect(parseAssistantMessageContent(rawContent, 'updating')).toEqual([
-        { type: 'protocol-loading' },
-      ])
-    },
-  )
+  it.each(['', '{"content":'])('流式阶段在正文尚未生成时返回空内容：%s', (rawContent) => {
+    expect(parseAssistantMessageContent(rawContent, 'updating')).toEqual([])
+  })
+
+  it.each([
+    ['普通文本正在生成', '普通文本正在生成'],
+    ['{"content":"第一行\\n第二行","charts":[]}', '第一行\n第二行'],
+  ])('流式阶段逐步展示正文：%s', (rawContent, expected) => {
+    expect(parseAssistantMessageContent(rawContent, 'updating')).toEqual([
+      { type: 'text', text: expected },
+    ])
+  })
+
+  it('从累积的 JSON 分片中持续展示正文', () => {
+    const chunks = [
+      ['{"content":', ''],
+      ['{"content":"第一段', '第一段'],
+      ['{"content":"第一段\n第二段', '第一段\n第二段'],
+      ['{"content":"第一段\n第二段","charts":[]}', '第一段\n第二段'],
+    ]
+
+    chunks.forEach(([rawContent, expected]) => {
+      expect(parseAssistantMessageContent(rawContent, 'updating')).toEqual(
+        expected ? [{ type: 'text', text: expected }] : [],
+      )
+    })
+  })
+
+  it('兼容 json 围栏内的流式正文', () => {
+    expect(parseAssistantMessageContent('```json\n{"content":"围栏正文', 'updating')).toEqual([
+      { type: 'text', text: '围栏正文' },
+    ])
+  })
+
+  it('兼容正文含真实换行的完整响应且不展示 JSON 外壳', () => {
+    const rawContent = '{"content":"第一段\n\n**第二段**","charts":[]}'
+
+    expect(parseAssistantMessageContent(rawContent)).toEqual([
+      { type: 'text', text: '第一段\n\n**第二段**' },
+    ])
+  })
+
+  it('正文含真实换行时仍在结束后渲染图表', () => {
+    const rawContent =
+      '{"content":"前文\n{{chart:demo}}\n后文","charts":[{"chartId":"demo","type":"bar","title":"演示","data":[{"name":"A","value":1}]}]}'
+
+    expect(parseAssistantMessageContent(rawContent)).toEqual([
+      { type: 'text', text: '前文\n' },
+      expect.objectContaining({
+        type: 'chart',
+        chart: expect.objectContaining({ chartId: 'demo' }),
+      }),
+      { type: 'text', text: '\n后文' },
+    ])
+  })
+
+  it('思考结束后继续流式展示 JSON 正文', () => {
+    const rawContent =
+      '\n\n<think status="done">\n\n分析完成\n\n</think>\n\n{"content":"正在生成\n第二行'
+
+    expect(parseAssistantMessageContent(rawContent, 'updating')).toEqual([
+      { type: 'thinking', text: '分析完成', completed: true },
+      { type: 'text', text: '正在生成\n第二行' },
+    ])
+  })
 
   it('将未闭合的 think 协议段解析为正在思考的内容块', () => {
     const rawContent = '\n\n<think>\n\n先分析问题，再寻找答案'

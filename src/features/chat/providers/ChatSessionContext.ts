@@ -5,6 +5,7 @@ import type { ChatMessage, ChatMode, ChatQuote, InsuranceSubmission } from '../m
 export interface ChatSessionValue {
   readonly messages: readonly ChatMessage[]
   readonly isReplying: boolean
+  readonly isSlow: boolean
   readonly error: string | null
   /** 登录恢复后清除旧会话遗留的错误提示。 */
   readonly clearError: () => void

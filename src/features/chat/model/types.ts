@@ -52,10 +52,6 @@ export interface ChartErrorMessageContent {
   readonly message: string
 }
 
-export interface ProtocolLoadingMessageContent {
-  readonly type: 'protocol-loading'
-}
-
 export interface DynamicCardMessageContent {
   readonly type: 'dynamic-card'
   readonly surfaceId: string
@@ -80,7 +76,6 @@ export type ChatMessageContent =
   | MermaidMessageContent
   | ChartMessageContent
   | ChartErrorMessageContent
-  | ProtocolLoadingMessageContent
   | DynamicCardMessageContent
   | DynamicCardErrorMessageContent
 

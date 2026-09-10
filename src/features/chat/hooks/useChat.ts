@@ -49,14 +49,15 @@ function toChatMessage(info: MessageInfo<DeepSeekMessage>): ChatMessage {
 // 负责 DeepSeek 会话的发送、流式状态、终止与失败重试，并向页面暴露稳定的领域模型。
 export function useChat() {
   const [requestError, setRequestError] = useState<string | null>(null)
+  const [isSlow, setIsSlow] = useState(false)
   const [mode, setMode] = useState(DEFAULT_CHAT_MODE)
   // ref 在同一事件循环内立即生效，避免连续提交绕过 React 异步状态更新。
   const requestInFlightRef = useRef(false)
   const config = DEEPSEEK_CONFIG_RESULT.config
 
-  const handleRequestError = useCallback((error: Error) => {
+  const handleRequestError = useCallback(() => {
     requestInFlightRef.current = false
-    if (error.name !== 'AbortError') setRequestError(formatRequestError(error))
+    // 请求错误只进入消息气泡，横幅留给无法发起请求的独立错误。
   }, [])
 
   const handleRequestSuccess = useCallback(() => {
@@ -75,6 +76,7 @@ export function useChat() {
         ? createDeepSeekProvider(config, {
             onError: handleRequestError,
             onSuccess: handleRequestSuccess,
+            onSlowChange: setIsSlow,
           })
         : undefined,
     [config, handleRequestError, handleRequestSuccess],
@@ -98,6 +100,9 @@ export function useChat() {
           : `${formatRequestError(error)} 你可以点击下方按钮重试。`,
     }),
   })
+
+  // 卸载时取消当前传输，防止后台请求和等待计时器遗留。
+  useEffect(() => () => provider?.request.abort(), [provider])
 
   useEffect(() => {
     // SDK 状态是最终事实来源；回调中的同步写入只用于封住提交瞬间的竞态窗口。
@@ -182,6 +187,7 @@ export function useChat() {
   return {
     messages: sdkMessages.map(toChatMessage),
     isReplying: isRequesting,
+    isSlow,
     error: requestError ?? DEEPSEEK_CONFIG_RESULT.error,
     clearError,
     mode,

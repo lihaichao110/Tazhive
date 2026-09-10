@@ -18,15 +18,17 @@ import { useAuth } from '@/features/auth'
 
 // 组合聊天页各区域，并协调流式回复、错误提示和自动滚动等页面级行为。
 function HomePageContent() {
-  const { messages, isReplying, error, clearError } = useChatSession()
+  const { messages, isReplying, isSlow, error, clearError } = useChatSession()
   const { isAuthenticated } = useAuth()
   const scrollAreaRef = useRef<HTMLElement>(null)
   const handledSurfaceIdsRef = useRef(new Set<string>())
   const wasAuthenticatedRef = useRef(isAuthenticated)
-  // 流式文本已经可见时不再显示输入动画，避免同时出现两种“正在回复”反馈。
-  const isStreamingContentVisible = messages.some(
+  // 思考或正文已在消息内展示时隐藏输入动画，避免和页面等待态重复反馈。
+  const isReplyContentVisible = messages.some(
     (message) =>
-      message.role === 'assistant' && message.status === 'updating' && message.content.length > 0,
+      message.role === 'assistant' &&
+      (message.status === 'loading' || message.status === 'updating') &&
+      message.content.length > 0,
   )
   // 卡片挂载后按当前页面策略滚到底部，同一 Surface 只处理一次。
   const handleDynamicCardReady = useCallback<DynamicCardReadyHandler>((surfaceId) => {
@@ -42,7 +44,7 @@ function HomePageContent() {
     const scrollArea = scrollAreaRef.current
     if (!scrollArea) return
     scrollArea.scrollTop = scrollArea.scrollHeight
-  }, [messages, isReplying])
+  }, [messages, isReplying, isSlow])
 
   // 仅响应一次真实的登录成功转换；初次读取本地令牌时不应清除既有错误状态。
   useEffect(() => {
@@ -60,7 +62,12 @@ function HomePageContent() {
             {messages.map((message) => (
               <ChatMessage key={message.id} message={message} />
             ))}
-            {isReplying && !isStreamingContentVisible ? <TypingIndicator /> : null}
+            {isReplying && isSlow ? (
+              <p className={styles.waitingNotice} role="status">
+                响应较慢，请稍候
+              </p>
+            ) : null}
+            {isReplying && !isSlow && !isReplyContentVisible ? <TypingIndicator /> : null}
           </div>
         </main>
       </DynamicCardHostProvider>

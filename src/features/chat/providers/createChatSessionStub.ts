@@ -5,6 +5,7 @@ export function createChatSessionStub(overrides: Partial<ChatSessionValue> = {})
   return {
     messages: [],
     isReplying: false,
+    isSlow: false,
     error: null,
     clearError: () => undefined,
     mode: 'fast',

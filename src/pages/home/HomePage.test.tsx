@@ -6,6 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const testState = vi.hoisted(() => ({
   providerInstances: 0,
+  isReplying: false,
+  isSlow: false,
+  messages: [] as ReturnType<typeof import('@/features/chat').useChatSession>['messages'],
   clearError: vi.fn(),
 }))
 
@@ -44,11 +47,12 @@ vi.mock('@/features/chat', async (importOriginal) => {
       return <div data-provider-instance={instance}>{children}</div>
     },
     DynamicCardHostProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-    TypingIndicator: () => <div />,
+    TypingIndicator: () => <div role="status" aria-label="AI 正在输入" />,
     useChatSession: () => ({
       error: null,
-      isReplying: false,
-      messages: [],
+      isReplying: testState.isReplying,
+      isSlow: testState.isSlow,
+      messages: testState.messages,
       clearError: testState.clearError,
     }),
   }
@@ -75,6 +79,9 @@ let root: Root
 describe('HomePage', () => {
   beforeEach(() => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    testState.isSlow = false
+    testState.isReplying = false
+    testState.messages = []
     testState.providerInstances = 0
     testState.clearError.mockClear()
     auth.isAuthenticated = false
@@ -88,6 +95,66 @@ describe('HomePage', () => {
     act(() => root.unmount())
     host.remove()
     vi.unstubAllGlobals()
+  })
+
+  it.each([true, false])('慢响应等待状态 %s 不作为错误横幅展示', (isWaiting) => {
+    const store = createConversationStore()
+    testState.isReplying = isWaiting
+    testState.isSlow = isWaiting
+    act(() =>
+      root.render(
+        <ConversationStoreProvider store={store}>
+          <HomePage />
+        </ConversationStoreProvider>,
+      ),
+    )
+    expect(host.textContent?.includes('响应较慢，请稍候')).toBe(isWaiting)
+    expect(host.querySelector('[aria-label="AI 正在输入"]')).toBeNull()
+    expect(host.querySelector('[role="alert"]')).toBeNull()
+  })
+
+  it.each(['loading', 'updating'] as const)('%s 消息已有正文时不叠加输入动画', (status) => {
+    testState.isReplying = true
+    testState.messages = [
+      {
+        id: 'reply',
+        role: 'assistant',
+        status,
+        content: [{ type: 'text', text: '正在返回的正文' }],
+      },
+    ]
+    act(() => {
+      root.render(
+        <ConversationStoreProvider store={createConversationStore()}>
+          <HomePage />
+        </ConversationStoreProvider>,
+      )
+    })
+
+    expect(host.querySelector('[aria-label="AI 正在输入"]')).toBeNull()
+  })
+
+  it.each([true, false])('只有请求中且没有消息反馈时显示输入动画：%s', (isReplying) => {
+    testState.isReplying = isReplying
+    // 历史回答不能阻止新请求在空占位阶段显示反馈。
+    testState.messages = [
+      {
+        id: 'history',
+        role: 'assistant',
+        status: 'success',
+        content: [{ type: 'text', text: '历史回答' }],
+      },
+      { id: 'reply', role: 'assistant', status: 'loading', content: [] },
+    ]
+    act(() => {
+      root.render(
+        <ConversationStoreProvider store={createConversationStore()}>
+          <HomePage />
+        </ConversationStoreProvider>,
+      )
+    })
+
+    expect(Boolean(host.querySelector('[aria-label="AI 正在输入"]'))).toBe(isReplying)
   })
 
   it('会话重置版本变化后重建聊天 Provider', () => {
