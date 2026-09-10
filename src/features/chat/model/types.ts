@@ -28,6 +28,34 @@ export interface MermaidMessageContent {
   readonly source: string
 }
 
+export type ResponseChartType = 'pie' | 'bar' | 'line'
+
+export interface ResponseChartDatum {
+  readonly name: string
+  readonly value: number
+}
+
+export interface ResponseChart {
+  readonly chartId: string
+  readonly type: ResponseChartType
+  readonly title: string
+  readonly data: readonly ResponseChartDatum[]
+}
+
+export interface ChartMessageContent {
+  readonly type: 'chart'
+  readonly chart: ResponseChart
+}
+
+export interface ChartErrorMessageContent {
+  readonly type: 'chart-error'
+  readonly message: string
+}
+
+export interface ProtocolLoadingMessageContent {
+  readonly type: 'protocol-loading'
+}
+
 export interface DynamicCardMessageContent {
   readonly type: 'dynamic-card'
   readonly surfaceId: string
@@ -50,6 +78,9 @@ export type ChatMessageContent =
   | TextMessageContent
   | ThinkingMessageContent
   | MermaidMessageContent
+  | ChartMessageContent
+  | ChartErrorMessageContent
+  | ProtocolLoadingMessageContent
   | DynamicCardMessageContent
   | DynamicCardErrorMessageContent
 

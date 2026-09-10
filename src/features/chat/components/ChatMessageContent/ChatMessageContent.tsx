@@ -18,6 +18,12 @@ const MermaidViewer = lazy(async () => {
   return { default: module.MermaidViewer }
 })
 
+// 图表运行时代码按需拆包，仅在渲染助手消息时加载。
+const ResponseChart = lazy(async () => {
+  const module = await import('../ResponseChart/ResponseChart')
+  return { default: module.ResponseChart }
+})
+
 interface ChatMessageContentProps {
   readonly content: readonly MessageContent[]
   readonly role: ChatRole
@@ -51,6 +57,27 @@ function renderContent(
   lastIndex: number,
 ): ReactNode {
   switch (content.type) {
+    case 'chart':
+      return (
+        <Suspense
+          key={`chart-${content.chart.chartId}-${index}`}
+          fallback={<p className={styles.contentLoading}>图表组件加载中…</p>}
+        >
+          <ResponseChart chart={content.chart} />
+        </Suspense>
+      )
+    case 'chart-error':
+      return (
+        <p key={`chart-error-${index}`} className={styles.cardError} role="alert">
+          {content.message}
+        </p>
+      )
+    case 'protocol-loading':
+      return (
+        <p key={`protocol-loading-${index}`} className={styles.contentLoading} role="status">
+          正在生成回答…
+        </p>
+      )
     case 'text': {
       if (role === 'assistant') {
         const streaming = isActiveStreamingBlock(role, status, index, lastIndex)

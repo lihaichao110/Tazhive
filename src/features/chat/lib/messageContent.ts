@@ -1,7 +1,12 @@
 import type { XAgentCommand_v0_9 } from '@ant-design/x-card'
 
 import { INSURANCE_CATALOG_ID } from '../model/insuranceCard'
-import type { ChatMessageContent, DynamicCardMessageContent } from '../model/types'
+import type {
+  ChatMessageContent,
+  ChatMessageStatus,
+  DynamicCardMessageContent,
+} from '../model/types'
+import { parseChartResponseEnvelope } from './chartMessageProtocol'
 
 // 只识别带换行且已闭合的结构化围栏，流式阶段的半包仍按普通文本展示。
 const STRUCTURED_FENCE_PATTERN = /```[\t ]*(mermaid|a2ui)[\t ]*\r?\n([\s\S]*?)```/gi
@@ -114,9 +119,19 @@ function trimProtocolLineBreaks(text: string): string {
 }
 
 // 将 DeepSeek 的 think 协议段转换为领域内容块，再解析思考后的正常回答。
-export function parseAssistantMessageContent(rawContent: string): readonly ChatMessageContent[] {
+export function parseAssistantMessageContent(
+  rawContent: string,
+  status: ChatMessageStatus = 'success',
+): readonly ChatMessageContent[] {
+  const isStreaming = status === 'loading' || status === 'updating'
   const openMatch = THINK_OPEN_PATTERN.exec(rawContent)
-  if (!openMatch || openMatch.index === undefined) return parseAnswerContent(rawContent)
+  if (!openMatch || openMatch.index === undefined) {
+    if (isStreaming) return [{ type: 'protocol-loading' }]
+    return (
+      parseChartResponseEnvelope(rawContent, { parseText: parseAnswerContent }) ??
+      parseAnswerContent(rawContent)
+    )
+  }
 
   const content: ChatMessageContent[] = []
   const precedingText = rawContent.slice(0, openMatch.index)
@@ -134,7 +149,13 @@ export function parseAssistantMessageContent(rawContent: string): readonly ChatM
   if (completed) {
     const answerStart = closeIndex + THINK_CLOSE_TAG.length
     const answerText = rawContent.slice(answerStart).replace(/^(?:\r?\n){0,2}/, '')
-    content.push(...parseAnswerContent(answerText))
+    if (isStreaming) content.push({ type: 'protocol-loading' })
+    else {
+      content.push(
+        ...(parseChartResponseEnvelope(answerText, { parseText: parseAnswerContent }) ??
+          parseAnswerContent(answerText)),
+      )
+    }
   }
 
   return content
@@ -158,6 +179,12 @@ export function serializeMessageContent(content: readonly ChatMessageContent[]):
           }`
         case 'mermaid':
           return `\`\`\`mermaid\n${block.source}\n\`\`\``
+        case 'chart':
+          return `{{chart:${block.chart.chartId}}}`
+        case 'chart-error':
+          return block.message
+        case 'protocol-loading':
+          return ''
         case 'dynamic-card':
           return `\`\`\`a2ui\n${JSON.stringify({
             surfaceId: block.surfaceId,

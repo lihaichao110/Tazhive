@@ -39,7 +39,7 @@ function toChatMessage(info: MessageInfo<DeepSeekMessage>): ChatMessage {
     role: info.message.role,
     content:
       info.message.role === 'assistant'
-        ? parseAssistantMessageContent(info.message.content)
+        ? parseAssistantMessageContent(info.message.content, info.status as ChatMessageStatus)
         : createTextMessageContent(info.message.content),
     status: info.status as ChatMessageStatus,
     quote: info.message.quote,

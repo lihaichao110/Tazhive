@@ -9,6 +9,118 @@ describe('parseAssistantMessageContent', () => {
     expect(parseAssistantMessageContent('')).toEqual([])
   })
 
+  it('将图表 JSON 按正文标记组合为有序内容块', () => {
+    const rawContent = JSON.stringify({
+      content: '前文{{chart:chart_bar}}中间{{chart:chart_pie}}后文',
+      charts: [
+        {
+          chartId: 'chart_bar',
+          type: 'bar',
+          title: '咨询量',
+          data: [{ name: '医疗险', value: 86 }],
+        },
+        {
+          chartId: 'chart_pie',
+          type: 'pie',
+          title: '咨询占比',
+          data: [{ name: '医疗险', value: 60 }],
+        },
+      ],
+    })
+
+    expect(parseAssistantMessageContent(rawContent)).toEqual([
+      { type: 'text', text: '前文' },
+      expect.objectContaining({ type: 'chart', chart: expect.objectContaining({ type: 'bar' }) }),
+      { type: 'text', text: '中间' },
+      expect.objectContaining({ type: 'chart', chart: expect.objectContaining({ type: 'pie' }) }),
+      { type: 'text', text: '后文' },
+    ])
+  })
+
+  it('兼容单层 json 围栏并忽略未引用图表', () => {
+    const envelope = JSON.stringify({
+      content: '只有正文',
+      charts: [
+        {
+          chartId: 'unused',
+          type: 'line',
+          title: '未引用',
+          data: [{ name: '一月', value: 1 }],
+        },
+      ],
+    })
+
+    expect(parseAssistantMessageContent(`\`\`\`json\n${envelope}\n\`\`\``)).toEqual([
+      { type: 'text', text: '只有正文' },
+    ])
+  })
+
+  it('同一图表标记可重复引用', () => {
+    const rawContent = JSON.stringify({
+      content: '{{chart:same}}再次展示{{chart:same}}',
+      charts: [
+        { chartId: 'same', type: 'line', title: '趋势', data: [{ name: '一月', value: 1 }] },
+      ],
+    })
+
+    expect(parseAssistantMessageContent(rawContent).map((block) => block.type)).toEqual([
+      'chart',
+      'text',
+      'chart',
+    ])
+  })
+
+  it.each([
+    {
+      charts: [{ chartId: 'bad', type: 'scatter', title: '未知', data: [{ name: 'A', value: 1 }] }],
+    },
+    {
+      charts: [{ chartId: 'bad', type: 'bar', title: '字符串', data: [{ name: 'A', value: '1' }] }],
+    },
+    { charts: [{ chartId: 'bad', type: 'bar', title: '', data: [{ name: 'A', value: 1 }] }] },
+    { charts: [{ chartId: 'bad', type: 'bar', title: '空数据', data: [] }] },
+    {
+      charts: [
+        { chartId: 'bad', type: 'bar', title: '重复一', data: [{ name: 'A', value: 1 }] },
+        { chartId: 'bad', type: 'bar', title: '重复二', data: [{ name: 'B', value: 2 }] },
+      ],
+    },
+  ])('非法或重复图表在引用位置局部降级', ({ charts }) => {
+    const rawContent = JSON.stringify({ content: '前{{chart:bad}}后', charts })
+
+    expect(parseAssistantMessageContent(rawContent)).toEqual([
+      { type: 'text', text: '前' },
+      { type: 'chart-error', message: '图表数据暂不可用。' },
+      { type: 'text', text: '后' },
+    ])
+  })
+
+  it('缺失图表引用局部降级', () => {
+    const rawContent = JSON.stringify({ content: '{{chart:missing}}', charts: [] })
+
+    expect(parseAssistantMessageContent(rawContent)).toEqual([
+      { type: 'chart-error', message: '图表数据暂不可用。' },
+    ])
+  })
+
+  it.each(['{"content":', '{"content":"正文"}', '```json\n{broken}\n```'])(
+    '明显属于协议但无效时隐藏原始内容：%s',
+    (rawContent) => {
+      expect(parseAssistantMessageContent(rawContent)).toEqual([
+        { type: 'chart-error', message: '回答格式异常，请重试。' },
+      ])
+    },
+  )
+
+  it.each(['', '{"content":', '{"content":"完整但状态未结束","charts":[]}'])(
+    '流式阶段不暴露协议内容：%s',
+    (rawContent) => {
+      expect(parseAssistantMessageContent(rawContent, 'updating')).toEqual([
+        { type: 'protocol-loading' },
+      ])
+    },
+  )
+
   it('将未闭合的 think 协议段解析为正在思考的内容块', () => {
     const rawContent = '\n\n<think>\n\n先分析问题，再寻找答案'
 

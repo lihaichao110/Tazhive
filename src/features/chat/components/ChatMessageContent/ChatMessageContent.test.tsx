@@ -61,6 +61,50 @@ describe('ChatMessageContent', () => {
     expect(markdownCalls).toHaveLength(0)
     expect(markup).toContain('**用户文本**')
     expect(markup).not.toContain('<strong>')
+    expect(markup).not.toContain('data-response-chart-preview')
+  })
+
+  it('按标记解析结果在正文中间展示图表', () => {
+    const markup = renderToStaticMarkup(
+      <ChatMessageContent
+        content={[
+          { type: 'text', text: '图表前的回答' },
+          {
+            type: 'chart',
+            chart: {
+              chartId: 'chart_demo',
+              type: 'bar',
+              title: '演示图表',
+              data: [{ name: 'A', value: 1 }],
+            },
+          },
+          { type: 'text', text: '图表后的回答' },
+        ]}
+        role="assistant"
+        status="success"
+      />,
+    )
+
+    const loadingIndex = markup.indexOf('图表组件加载中')
+    expect(markup.indexOf('图表前的回答')).toBeLessThan(loadingIndex)
+    expect(loadingIndex).toBeLessThan(markup.indexOf('图表后的回答'))
+  })
+
+  it('展示协议加载和局部图表错误状态', () => {
+    const markup = renderToStaticMarkup(
+      <ChatMessageContent
+        content={[
+          { type: 'protocol-loading' },
+          { type: 'chart-error', message: '图表数据暂不可用。' },
+        ]}
+        role="assistant"
+        status="updating"
+      />,
+    )
+
+    expect(markup).toContain('正在生成回答…')
+    expect(markup).toContain('图表数据暂不可用。')
+    expect(markup).not.toContain('data-response-chart-preview')
   })
 
   it('保持文本与 Mermaid 内容块的原始顺序', () => {
@@ -76,8 +120,9 @@ describe('ChatMessageContent', () => {
       />,
     )
 
-    expect(markup.indexOf('前文')).toBeLessThan(markup.indexOf('图表组件加载中'))
-    expect(markup.indexOf('图表组件加载中')).toBeLessThan(markup.indexOf('后文'))
+    const mermaidLoadingIndex = markup.lastIndexOf('图表组件加载中')
+    expect(markup.indexOf('前文')).toBeLessThan(mermaidLoadingIndex)
+    expect(mermaidLoadingIndex).toBeLessThan(markup.indexOf('后文'))
   })
 
   it('将思考内容交给 Think 展示且不混入普通 Markdown', () => {
