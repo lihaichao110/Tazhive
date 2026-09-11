@@ -155,6 +155,23 @@ describe('ChatMessageContent', () => {
     ])
   })
 
+  it('生成中将带真实换行的 Markdown 直接交给流式渲染器', () => {
+    const content = '# 标题\n\n- 第一项'
+
+    renderToStaticMarkup(
+      <ChatMessageContent
+        content={[{ type: 'text', text: content }]}
+        role="assistant"
+        status="updating"
+      />,
+    )
+
+    expect(markdownCalls[0]).toMatchObject({
+      content,
+      streaming: { hasNextChunk: true },
+    })
+  })
+
   it.each(['success', 'error', 'abort'] as const)('状态为 %s 时结束流式渲染', (status) => {
     renderToStaticMarkup(
       <ChatMessageContent

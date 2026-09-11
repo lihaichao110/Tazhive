@@ -1,7 +1,40 @@
 import { describe, expect, it } from 'vitest'
 
 import { createInsuranceMockReply } from '../model/insuranceCard'
-import { parseAssistantMessageContent } from './messageContent'
+import { getCopyableAssistantContent, parseAssistantMessageContent } from './messageContent'
+
+describe('getCopyableAssistantContent', () => {
+  it('只保留最终回答 Markdown 与 Mermaid 源码', () => {
+    expect(
+      getCopyableAssistantContent([
+        { type: 'thinking', text: '内部分析', completed: true },
+        { type: 'text', text: '流程如下：\n' },
+        { type: 'mermaid', source: 'flowchart LR\nA --> B' },
+        {
+          type: 'chart',
+          chart: {
+            chartId: 'chart-1',
+            type: 'bar',
+            title: '图表',
+            data: [{ name: 'A', value: 1 }],
+          },
+        },
+        { type: 'chart-error', message: '图表加载失败' },
+        { type: 'dynamic-card-error', message: '表单加载失败' },
+        { type: 'text', text: '\n完成。' },
+      ]),
+    ).toBe('流程如下：\n```mermaid\nflowchart LR\nA --> B\n```\n完成。')
+  })
+
+  it('没有最终文本或 Mermaid 时返回空字符串', () => {
+    expect(
+      getCopyableAssistantContent([
+        { type: 'thinking', text: '内部分析', completed: true },
+        { type: 'chart-error', message: '图表加载失败' },
+      ]),
+    ).toBe('')
+  })
+})
 
 describe('parseAssistantMessageContent', () => {
   it('将普通文本保留为文本内容块', () => {
@@ -136,6 +169,30 @@ describe('parseAssistantMessageContent', () => {
         expected ? [{ type: 'text', text: expected }] : [],
       )
     })
+  })
+
+  it('流式阶段将 JSON 转义换行还原后再交给 Markdown 渲染', () => {
+    const rawContent = '{"content":"# 标题\\n\\n- 第一项\\n- 第二项'
+
+    expect(parseAssistantMessageContent(rawContent, 'updating')).toEqual([
+      { type: 'text', text: '# 标题\n\n- 第一项\n- 第二项' },
+    ])
+  })
+
+  it('流式正文中的转义引号和 charts 文本不会提前结束解析', () => {
+    const rawContent = '{"content":"正文含有 \\"charts\\" 文本\\n后文'
+
+    expect(parseAssistantMessageContent(rawContent, 'updating')).toEqual([
+      { type: 'text', text: '正文含有 "charts" 文本\n后文' },
+    ])
+  })
+
+  it('完整信封在流式与完成状态下生成相同正文', () => {
+    const rawContent = JSON.stringify({ content: '# 标题\n\n1. 第一项', charts: [] })
+
+    expect(parseAssistantMessageContent(rawContent, 'updating')).toEqual(
+      parseAssistantMessageContent(rawContent, 'success'),
+    )
   })
 
   it('兼容 json 围栏内的流式正文', () => {

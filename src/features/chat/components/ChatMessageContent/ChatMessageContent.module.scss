@@ -2,8 +2,6 @@
 .assistantMarkdown {
   max-width: 100%;
   margin: 0;
-  padding: 8px 12px;
-  border-radius: 8px;
   overflow-wrap: break-word;
   font-size: 14px;
   line-height: 1.5;
@@ -32,16 +30,13 @@
 
 .userBubble {
   max-width: 100%;
-  color: #fff;
-  // 固定使用浅色模式的深绿，避免暗色令牌的亮绿背景降低白字对比度。
-  background-color: #028550;
+  color: inherit;
   white-space: pre-wrap;
 }
 
 .assistantMarkdown {
   width: fit-content;
   color: var(--color-text-primary);
-  background: var(--color-surface-muted);
 
   :global(h1),
   :global(h2),

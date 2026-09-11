@@ -1,11 +1,11 @@
 import type { ChatMessageContent, ResponseChart, ResponseChartType } from '../model/types'
+import { decodeStreamingJsonString } from './decodeStreamingJsonString'
 
 const CHART_LOAD_ERROR = '图表数据暂不可用。'
 const CHART_MARKER_PATTERN = /\{\{chart:([^{}]+)\}\}/g
 const JSON_FENCE_PATTERN = /^```json[\t ]*\r?\n([\s\S]*?)\r?\n?```[\t ]*$/i
 const JSON_FENCE_OPEN_PATTERN = /^```json[\t ]*\r?\n/i
 const CONTENT_PREFIX_PATTERN = /^\s*\{\s*"content"\s*:\s*"/i
-const CHARTS_TAIL_PATTERN = /"\s*,\s*"charts"\s*:\s*\[[\s\S]*$/i
 const RELAXED_ENVELOPE_PATTERN =
   /^\s*\{\s*"content"\s*:\s*"([\s\S]*)"\s*,\s*"charts"\s*:\s*(\[[\s\S]*\])\s*\}\s*$/i
 const CHART_TYPES = new Set<ResponseChartType>(['pie', 'bar', 'line'])
@@ -59,9 +59,7 @@ function parseStreamingContent(
 
   const prefix = CONTENT_PREFIX_PATTERN.exec(source)
   if (!prefix) return source.trimStart().startsWith('{') ? [] : null
-  const content = source
-    .slice(prefix[0].length)
-    .replace(CHARTS_TAIL_PATTERN, '')
+  const content = decodeStreamingJsonString(source.slice(prefix[0].length))
     .replace(CHART_MARKER_PATTERN, '')
     .replace(/\{\{(?:chart(?::[^{}]*)?)?$/, '')
   return parseText(content)

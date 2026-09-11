@@ -12,11 +12,11 @@
 
   // 嵌套两层内置类将特异度提升到 (0,3,0)，
   // 压过 cssinjs 注入的 :where(...).ant-sender .ant-sender-input (0,2,0)，
-  // 否则输入区字号 15px 会被组件库默认 14px 覆盖。
+  // 确保输入区字号稳定使用页面正文令牌，不受组件库样式覆盖。
   :global(.ant-sender-content) :global(.ant-sender-input) {
     outline: none;
     font-family: inherit;
-    font-size: 15px;
+    font-size: var(--font-size-body);
     line-height: 1.6;
 
     &::placeholder {

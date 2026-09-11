@@ -8,12 +8,22 @@
   align-items: flex-end;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.userBubble {
+  width: fit-content;
   max-width: 75%;
   margin-left: auto;
 
   @media (width <= 640px) {
     max-width: 85%;
   }
+}
+
+.assistantBubble {
+  width: 100%;
 }
 
 .assistantRow {
@@ -38,6 +48,7 @@
   background: var(--color-surface);
   color: var(--color-text-secondary);
   font: inherit;
+  font-size: var(--font-size-body);
   cursor: pointer;
 
   &:hover {

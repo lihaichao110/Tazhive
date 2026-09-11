@@ -15,7 +15,7 @@
 
   :global(.ant-drawer-title) {
     color: var(--sidebar-text-primary);
-    font-size: 16px;
+    font-size: var(--font-size-body);
     font-weight: 600;
   }
 }

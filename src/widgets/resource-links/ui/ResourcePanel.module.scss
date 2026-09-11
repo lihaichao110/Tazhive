@@ -26,6 +26,13 @@
   }
 }
 
+.panel h2 {
+  margin: 0;
+  font-size: var(--font-size-title);
+  line-height: 1.18;
+  letter-spacing: -0.2px;
+}
+
 .list {
   display: flex;
   gap: 8px;
@@ -41,7 +48,7 @@
     border-radius: 6px;
     color: var(--color-heading);
     background: var(--color-surface-muted);
-    font-size: 16px;
+    font-size: var(--font-size-body);
     text-decoration: none;
     transition: box-shadow 0.3s;
 

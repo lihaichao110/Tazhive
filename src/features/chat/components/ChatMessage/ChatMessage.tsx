@@ -1,5 +1,10 @@
+import { Bubble } from '@ant-design/x'
+import { theme } from 'antd'
+
 import type { ChatMessage as ChatMessageModel } from '../../model/types'
+import { getCopyableAssistantContent } from '../../lib/messageContent'
 import { useChatSessionActions } from '../../providers/useChatSession'
+import { AssistantCopyButton } from '../AssistantCopyButton/AssistantCopyButton'
 import { ChatMessageContent } from '../ChatMessageContent/ChatMessageContent'
 import { MessageSelectionActions } from '../MessageSelectionActions/MessageSelectionActions'
 import { QuoteCard } from '../QuoteCard/QuoteCard'
@@ -12,9 +17,13 @@ interface ChatMessageProps {
 // 根据消息角色与请求状态选择布局，并为失败的助手消息提供原位重试入口。
 export function ChatMessage({ message }: ChatMessageProps) {
   const { retry } = useChatSessionActions()
+  const { token } = theme.useToken()
 
-  // AI 消息靠左、以普通文本展示；用户消息靠右、使用浅灰气泡。
+  // Bubble 只承载消息外壳；流式 Markdown 与结构化内容仍由领域渲染器负责。
   if (message.role === 'assistant') {
+    const copyableContent =
+      message.status === 'success' ? getCopyableAssistantContent(message.content) : ''
+
     return (
       <div className={styles.assistantRow}>
         <MessageSelectionActions
@@ -22,10 +31,19 @@ export function ChatMessage({ message }: ChatMessageProps) {
           messageId={message.id}
           role={message.role}
         >
-          <ChatMessageContent
-            content={message.content}
-            role={message.role}
-            status={message.status}
+          <Bubble
+            rootClassName={styles.assistantBubble}
+            placement="start"
+            variant="borderless"
+            content={
+              <ChatMessageContent
+                content={message.content}
+                role={message.role}
+                status={message.status}
+              />
+            }
+            footer={copyableContent ? <AssistantCopyButton content={copyableContent} /> : undefined}
+            footerPlacement="outer-start"
           />
         </MessageSelectionActions>
         {message.status === 'error' ? (
@@ -40,14 +58,22 @@ export function ChatMessage({ message }: ChatMessageProps) {
   return (
     <div className={styles.userRow}>
       <MessageSelectionActions enabled messageId={message.id} role={message.role}>
-        <div className={styles.userMessage}>
-          {message.quote ? <QuoteCard quote={message.quote} /> : null}
-          <ChatMessageContent
-            content={message.content}
-            role={message.role}
-            status={message.status}
-          />
-        </div>
+        <Bubble
+          rootClassName={styles.userBubble}
+          placement="end"
+          variant="filled"
+          styles={{ content: { backgroundColor: token.colorPrimary, color: '#fff' } }}
+          content={
+            <div className={styles.userMessage}>
+              {message.quote ? <QuoteCard quote={message.quote} /> : null}
+              <ChatMessageContent
+                content={message.content}
+                role={message.role}
+                status={message.status}
+              />
+            </div>
+          }
+        />
       </MessageSelectionActions>
     </div>
   )

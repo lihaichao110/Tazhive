@@ -1,5 +1,5 @@
 :root {
-  font: 18px/1.45 var(--font-sans);
+  font: var(--font-size-body) / 1.45 var(--font-sans);
   letter-spacing: 0.18px;
   color: var(--color-text);
   background: var(--color-background);
@@ -7,10 +7,6 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (width <= 1024px) {
-    font-size: 16px;
-  }
 }
 
 // 对话页需要满屏布局（顶部导航与底部输入区贴边），
@@ -28,28 +24,6 @@ h2 {
   font-weight: 500;
 }
 
-h1 {
-  margin: 32px 0;
-  font-size: 56px;
-  letter-spacing: -1.68px;
-
-  @media (width <= 1024px) {
-    margin: 20px 0;
-    font-size: 36px;
-  }
-}
-
-h2 {
-  margin: 0 0 8px;
-  font-size: 24px;
-  line-height: 1.18;
-  letter-spacing: -0.24px;
-
-  @media (width <= 1024px) {
-    font-size: 20px;
-  }
-}
-
 p {
   margin: 0;
 }
@@ -60,5 +34,5 @@ code {
   border-radius: 4px;
   color: var(--color-heading);
   background: var(--color-code-background);
-  font: 15px/1.35 var(--font-mono);
+  font: var(--font-size-body) / 1.35 var(--font-mono);
 }

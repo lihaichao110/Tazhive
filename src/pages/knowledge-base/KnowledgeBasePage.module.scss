@@ -19,6 +19,7 @@
     radial-gradient(circle at 8% 2%, rgb(150 223 187 / 17%), transparent 27%),
     radial-gradient(circle at 92% 18%, rgb(238 224 175 / 18%), transparent 25%), #f7faf8;
   font-family: Inter, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+  font-size: var(--font-size-body);
 
   :focus-visible {
     outline: 2px solid var(--kb-accent);
@@ -86,7 +87,7 @@
   h1 {
     margin: 18px 0 16px;
     color: var(--kb-text);
-    font-size: clamp(36px, 4.4vw, 54px);
+    font-size: clamp(32px, 4vw, 44px);
     font-weight: 680;
     line-height: 1.1;
     letter-spacing: -0.045em;
@@ -94,7 +95,7 @@
 
   > p {
     color: var(--kb-text-muted);
-    font-size: 16px;
+    font-size: var(--font-size-body);
     line-height: 1.75;
   }
 }
@@ -188,7 +189,7 @@
   h2 {
     margin: 2px 0 0;
     color: var(--kb-text);
-    font-size: 18px;
+    font-size: var(--font-size-subtitle);
     font-weight: 650;
   }
 }
@@ -279,7 +280,7 @@
 
     h1 {
       margin-top: 14px;
-      font-size: 34px;
+      font-size: 30px;
     }
 
     > p {

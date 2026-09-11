@@ -166,6 +166,17 @@ export function createTextMessageContent(text: string): readonly ChatMessageCont
   return toTextContent(text)
 }
 
+// 提取适合分享的最终回答源码；内部思考与交互式结构化数据不进入用户剪贴板。
+export function getCopyableAssistantContent(content: readonly ChatMessageContent[]): string {
+  return content
+    .map((block) => {
+      if (block.type === 'text') return block.text
+      if (block.type === 'mermaid') return `\`\`\`mermaid\n${block.source}\n\`\`\``
+      return ''
+    })
+    .join('')
+}
+
 // 将领域内容块还原为 SDK 接受的字符串协议，用于初始化和请求上下文传递。
 export function serializeMessageContent(content: readonly ChatMessageContent[]): string {
   return content

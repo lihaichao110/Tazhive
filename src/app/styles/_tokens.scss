@@ -14,6 +14,11 @@
   --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --font-heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, Consolas, monospace;
+  --font-size-caption: 10px;
+  --font-size-meta: 12px;
+  --font-size-body: 14px;
+  --font-size-subtitle: 16px;
+  --font-size-title: 20px;
   --layout-max-width: 1126px;
 
   @media (prefers-color-scheme: dark) {

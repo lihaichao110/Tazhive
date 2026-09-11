@@ -23,6 +23,7 @@
   background: var(--color-surface);
   color: var(--color-text-primary);
   font-family: var(--font-chat);
+  font-size: var(--font-size-body);
 
   // 克制但清晰的键盘焦点样式，仅作用于本页面内的可聚焦元素。
   :focus-visible {
