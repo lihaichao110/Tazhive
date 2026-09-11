@@ -15,6 +15,8 @@ export interface ThreadBootstrap {
   /** 首条消息建线程请求进行中，需要向用户呈现与“回复中”一致的加载反馈。 */
   readonly isPreparing: boolean
   readonly ensureThread: (firstMessage: string) => Promise<null | string>
+  /** 切换会话时使尚未完成的建线程结果失效，防止迟到响应重新绑定当前会话。 */
+  readonly cancelPreparing: () => void
   /** 读取当前绑定的线程 ID，以调用时刻的 Store 状态为准。 */
   readonly getThreadId: () => string
 }
@@ -27,6 +29,7 @@ export function useThreadBootstrap(): ThreadBootstrap {
   const [isPreparing, setIsPreparing] = useState(false)
   // 建线程请求进行中时拒绝再次触发，避免连点发送创建出重复线程。
   const creatingRef = useRef(false)
+  const requestSeqRef = useRef(0)
 
   if (!store) throw new Error('useThreadBootstrap 必须在 ConversationStoreProvider 内使用。')
 
@@ -38,19 +41,26 @@ export function useThreadBootstrap(): ThreadBootstrap {
       if (creatingRef.current) return null
 
       creatingRef.current = true
+      const requestSeq = requestSeqRef.current + 1
+      requestSeqRef.current = requestSeq
       setIsPreparing(true)
       setError(null)
       const title = deriveThreadTitle(firstMessage)
       try {
         const threadId = await requestCreateThread(title)
+        if (requestSeq !== requestSeqRef.current) return null
         store.getState().adoptConversation(threadId, title)
         return threadId
       } catch (cause: unknown) {
-        setError(cause instanceof Error ? cause.message : '会话创建失败，请稍后重试')
+        if (requestSeq === requestSeqRef.current) {
+          setError(cause instanceof Error ? cause.message : '会话创建失败，请稍后重试')
+        }
         return null
       } finally {
-        creatingRef.current = false
-        setIsPreparing(false)
+        if (requestSeq === requestSeqRef.current) {
+          creatingRef.current = false
+          setIsPreparing(false)
+        }
       }
     },
     [store],
@@ -58,10 +68,17 @@ export function useThreadBootstrap(): ThreadBootstrap {
 
   const getThreadId = useCallback(() => store.getState().selectedConversationId, [store])
 
+  const cancelPreparing = useCallback((): void => {
+    requestSeqRef.current += 1
+    creatingRef.current = false
+    setIsPreparing(false)
+    setError(null)
+  }, [])
+
   // 认证恢复后，之前建会话请求的失败结果不能继续作为当前会话错误展示。
   const clearError = useCallback((): void => {
     setError(null)
   }, [])
 
-  return { error, clearError, isPreparing, ensureThread, getThreadId }
+  return { error, clearError, isPreparing, ensureThread, cancelPreparing, getThreadId }
 }

@@ -9,7 +9,10 @@ const testState = vi.hoisted(() => ({
   isReplying: false,
   isSlow: false,
   messages: [] as ReturnType<typeof import('@/features/chat').useChatSession>['messages'],
+  isHistoryLoading: false,
+  historyError: null as string | null,
   clearError: vi.fn(),
+  retryHistory: vi.fn(),
 }))
 
 const auth = vi.hoisted(() => {
@@ -53,7 +56,10 @@ vi.mock('@/features/chat', async (importOriginal) => {
       isReplying: testState.isReplying,
       isSlow: testState.isSlow,
       messages: testState.messages,
+      isHistoryLoading: testState.isHistoryLoading,
+      historyError: testState.historyError,
       clearError: testState.clearError,
+      retryHistory: testState.retryHistory,
     }),
   }
 })
@@ -82,8 +88,11 @@ describe('HomePage', () => {
     testState.isSlow = false
     testState.isReplying = false
     testState.messages = []
+    testState.isHistoryLoading = false
+    testState.historyError = null
     testState.providerInstances = 0
     testState.clearError.mockClear()
+    testState.retryHistory.mockClear()
     auth.isAuthenticated = false
     auth.notify()
     host = document.createElement('div')
@@ -207,5 +216,51 @@ describe('HomePage', () => {
     })
 
     expect(testState.clearError).not.toHaveBeenCalled()
+  })
+
+  it('历史加载期间在主对话区显示独立 Loading', () => {
+    testState.isHistoryLoading = true
+    act(() => {
+      root.render(
+        <ConversationStoreProvider store={createConversationStore()}>
+          <HomePage />
+        </ConversationStoreProvider>,
+      )
+    })
+
+    expect(host.querySelector('[role="status"]')?.textContent).toContain('正在加载对话记录')
+    expect(host.querySelector('[aria-label="AI 正在输入"]')).toBeNull()
+  })
+
+  it('历史加载失败时展示错误并支持重试', () => {
+    testState.historyError = '网络连接异常'
+    act(() => {
+      root.render(
+        <ConversationStoreProvider store={createConversationStore()}>
+          <HomePage />
+        </ConversationStoreProvider>,
+      )
+    })
+
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain('网络连接异常')
+    const retryButton = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent === '重试',
+    )
+    act(() => retryButton?.click())
+    expect(testState.retryHistory).toHaveBeenCalledOnce()
+  })
+
+  it('已选会话返回空历史时显示空状态', () => {
+    const store = createConversationStore()
+    store.getState().adoptConversation('history-thread', '历史会话')
+    act(() => {
+      root.render(
+        <ConversationStoreProvider store={store}>
+          <HomePage />
+        </ConversationStoreProvider>,
+      )
+    })
+
+    expect(host.textContent).toContain('暂无对话记录')
   })
 })

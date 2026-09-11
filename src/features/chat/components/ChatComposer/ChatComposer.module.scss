@@ -10,6 +10,12 @@
     border-color: var(--color-accent);
   }
 
+  // 清除组件库为内容区同时设置的上下内边距，仅保留输入区顶部留白。
+  :global(.ant-sender-content) {
+    padding-block: 0;
+    padding-top: 12px;
+  }
+
   // 嵌套两层内置类将特异度提升到 (0,3,0)，
   // 压过 cssinjs 注入的 :where(...).ant-sender .ant-sender-input (0,2,0)，
   // 确保输入区字号稳定使用页面正文令牌，不受组件库样式覆盖。

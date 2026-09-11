@@ -75,7 +75,7 @@ export function createConversationStore(): ConversationStoreApi {
     // 进入新会话：清空选中并重建聊天子树；历史列表保留，供随时切回。
     startNewConversation: () =>
       set((state) => ({ selectedConversationId: '', sessionVersion: state.sessionVersion + 1 })),
-    // 服务端列表替换后保留当前选中项；空列表或选中项丢失时清空/回退，避免长期悬空选中。
+    // 服务端列表替换只负责同步数据：保留仍有效的选中项，失效时清空，禁止隐式选中首项。
     setConversations: (conversations) => {
       set((state) => ({
         conversations,
@@ -83,7 +83,7 @@ export function createConversationStore(): ConversationStoreApi {
           (conversation) => conversation.id === state.selectedConversationId,
         )
           ? state.selectedConversationId
-          : (conversations[0]?.id ?? ''),
+          : '',
       }))
     },
     selectConversation: (conversationId) => {

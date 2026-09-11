@@ -1,11 +1,12 @@
 .drawer {
   --sidebar-surface: #ffffff;
   --sidebar-surface-hover: #f5f5f5;
-  --sidebar-surface-selected: #eeeeee;
   --sidebar-text-primary: #202124;
   --sidebar-text-secondary: #666a70;
   --sidebar-border: #e5e5e5;
   --sidebar-focus: #555b65;
+  --sidebar-accent: var(--color-accent, #028550);
+  --sidebar-accent-soft: var(--color-accent-background, rgb(2 133 80 / 10%));
 }
 
 .drawerHeader {
@@ -102,21 +103,24 @@
 .conversationList {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .conversationButton {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
   width: 100%;
-  padding: 11px 12px;
+  min-height: 42px;
+  padding: 6px 9px;
   overflow: hidden;
   border: none;
-  border-radius: 10px;
+  border-radius: 9px;
   background: transparent;
   color: var(--sidebar-text-primary);
   font: inherit;
@@ -129,7 +133,22 @@
   }
 
   &[aria-current='page'] {
-    background: var(--sidebar-surface-selected);
+    background: var(--sidebar-accent-soft);
+
+    &::before {
+      position: absolute;
+      top: 9px;
+      bottom: 9px;
+      left: 0;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--sidebar-accent);
+      content: '';
+    }
+
+    .conversationTitle {
+      font-weight: 600;
+    }
   }
 
   &:focus-visible {
@@ -138,35 +157,77 @@
   }
 }
 
+.conversationIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+
+  &[data-icon-color='0'] {
+    background: #e5efff;
+    color: #2563eb;
+  }
+
+  &[data-icon-color='1'] {
+    background: #fff0df;
+    color: #c55a11;
+  }
+
+  &[data-icon-color='2'] {
+    background: #f1e9ff;
+    color: #7c3aed;
+  }
+
+  &[data-icon-color='3'] {
+    background: #dff7ec;
+    color: #087a55;
+  }
+
+  &[data-icon-color='4'] {
+    background: #ffe7ed;
+    color: #c02654;
+  }
+
+  &[data-icon-color='5'] {
+    background: #fff5cc;
+    color: #9a6700;
+  }
+
+  &[data-icon-color='6'] {
+    background: #ddf7fa;
+    color: #087f8c;
+  }
+
+  &[data-icon-color='7'] {
+    background: #ecebff;
+    color: #5145cd;
+  }
+}
+
 .conversationHeading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
-}
-
-.conversationTitle,
-.conversationPreview {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .conversationTitle {
   flex: 1;
+  overflow: hidden;
   font-size: 14px;
   font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .conversationTime {
   flex: none;
   color: var(--sidebar-text-secondary);
   font-size: 11px;
-}
-
-.conversationPreview {
-  color: var(--sidebar-text-secondary);
-  font-size: 12px;
-  line-height: 1.45;
 }

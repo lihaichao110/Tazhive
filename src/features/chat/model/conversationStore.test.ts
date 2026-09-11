@@ -53,14 +53,23 @@ describe('conversationStore', () => {
     expect(store.getState().isSidebarOpen).toBe(true)
   })
 
-  it('服务端空列表会清空选中，非空列表优先保留当前选中项', () => {
+  it('加载服务端列表时不默认选中首项', () => {
     const store = createConversationStore()
     store.getState().setConversations([createSummary('a'), createSummary('b')])
-    expect(store.getState().selectedConversationId).toBe('a')
 
+    expect(store.getState().selectedConversationId).toBe('')
+  })
+
+  it('刷新服务端列表时保留有效选中项，并清空已失效的选中项', () => {
+    const store = createConversationStore()
+    store.getState().setConversations([createSummary('a'), createSummary('b')])
     store.getState().selectConversation('b')
+
     store.getState().setConversations([createSummary('a'), createSummary('b')])
     expect(store.getState().selectedConversationId).toBe('b')
+
+    store.getState().setConversations([createSummary('a')])
+    expect(store.getState().selectedConversationId).toBe('')
 
     store.getState().setConversations([])
     expect(store.getState().conversations).toHaveLength(0)

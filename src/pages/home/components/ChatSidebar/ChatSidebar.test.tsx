@@ -14,10 +14,11 @@ import {
   type ConversationStoreApi,
 } from '@/features/chat'
 
-const { drawerCalls, requestListThreads, abort } = vi.hoisted(() => ({
+const { drawerCalls, requestListThreads, abort, loadHistory } = vi.hoisted(() => ({
   drawerCalls: [] as DrawerProps[],
   requestListThreads: vi.fn(),
   abort: vi.fn(),
+  loadHistory: vi.fn(),
 }))
 
 vi.mock('antd', () => ({
@@ -30,7 +31,7 @@ vi.mock('antd', () => ({
 vi.mock('@/features/chat/api/listThreads', () => ({ requestListThreads }))
 
 vi.mock('@/features/chat/providers/useChatSession', () => ({
-  useChatSession: () => ({ abort }),
+  useChatSession: () => ({ abort, loadHistory }),
 }))
 
 let host: HTMLDivElement
@@ -54,12 +55,22 @@ function clickButton(label: string): void {
   act(() => button.click())
 }
 
+function clickButtonContaining(label: string): void {
+  const button = [...host.querySelectorAll('button')].find((item) =>
+    item.textContent?.includes(label),
+  )
+  if (!button) throw new Error(`未找到包含文本的测试按钮：${label}`)
+  act(() => button.click())
+}
+
 describe('ChatSidebar', () => {
   beforeEach(() => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
     drawerCalls.length = 0
     requestListThreads.mockReset()
     abort.mockClear()
+    loadHistory.mockReset()
+    loadHistory.mockResolvedValue(undefined)
     host = document.createElement('div')
     document.body.append(host)
     root = createRoot(host)
@@ -90,9 +101,14 @@ describe('ChatSidebar', () => {
     const drawer = drawerCalls.at(-1)
     expect(drawer?.open).toBe(true)
     expect(drawer?.placement).toBe('left')
+    expect(drawer?.size).toBe('min(88vw, 280px)')
     expect(requestListThreads).toHaveBeenCalledTimes(1)
     expect(host.textContent).toContain('服务端会话')
+    expect(store.getState().conversations[0]?.preview).toBe('暂无消息')
+    expect(host.textContent).not.toContain('暂无消息')
     expect(store.getState().conversations).toHaveLength(1)
+    expect(store.getState().selectedConversationId).toBe('')
+    expect(host.querySelector('[aria-current="page"]')).toBeNull()
   })
 
   it('抽屉关闭时不触发拉取', () => {
@@ -101,6 +117,29 @@ describe('ChatSidebar', () => {
 
     expect(store.getState().isSidebarOpen).toBe(false)
     expect(requestListThreads).not.toHaveBeenCalled()
+  })
+
+  it('为相邻会话分配不同的圆形图标配色', async () => {
+    requestListThreads.mockResolvedValue(
+      ['first-thread', 'second-thread', 'third-thread'].map((id) => ({
+        created_at: '2026-09-01T10:00:00Z',
+        id,
+        status: 'active',
+        title: id,
+        updated_at: '2026-09-02T10:00:00Z',
+        user_id: 'user-1',
+      })),
+    )
+    const store = renderSidebar()
+
+    act(() => store.getState().toggleSidebar())
+    await act(async () => {})
+
+    const iconColors = [...host.querySelectorAll('[data-icon-color]')].map((icon) =>
+      icon.getAttribute('data-icon-color'),
+    )
+    expect(iconColors).toHaveLength(3)
+    expect(new Set(iconColors)).toHaveProperty('size', 3)
   })
 
   it('拉取中展示品牌加载动画与场景文案', () => {
@@ -158,6 +197,33 @@ describe('ChatSidebar', () => {
     expect(store.getState().isSidebarOpen).toBe(false)
     // 历史列表保留，供用户随时切回。
     expect(store.getState().conversations).toHaveLength(1)
+  })
+
+  it('每次点击已有会话都选中、关闭抽屉并重新拉取历史', async () => {
+    requestListThreads.mockResolvedValue([
+      {
+        created_at: '2026-09-01T10:00:00Z',
+        id: 'server-thread',
+        status: 'active',
+        title: '服务端会话',
+        updated_at: '2026-09-02T10:00:00Z',
+        user_id: 'user-1',
+      },
+    ])
+    const store = renderSidebar()
+    act(() => store.getState().toggleSidebar())
+    await act(async () => {})
+
+    clickButtonContaining('服务端会话')
+
+    expect(store.getState().selectedConversationId).toBe('server-thread')
+    expect(store.getState().isSidebarOpen).toBe(false)
+    expect(loadHistory).toHaveBeenCalledWith('server-thread')
+
+    act(() => store.getState().toggleSidebar())
+    await act(async () => {})
+    clickButtonContaining('服务端会话')
+    expect(loadHistory).toHaveBeenCalledTimes(2)
   })
 
   it('将抽屉关闭事件直接写回 Store', async () => {

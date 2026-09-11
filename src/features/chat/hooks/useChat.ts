@@ -6,6 +6,7 @@ import {
   type DeepSeekMessage,
   type DeepSeekRequestParams,
 } from '../api/deepSeekProvider'
+import type { ThreadMessageRead } from '../api/listThreadMessages'
 import {
   createTextMessageContent,
   parseAssistantMessageContent,
@@ -154,6 +155,25 @@ export function useChat() {
     if (requestInFlightRef.current) abortRequest()
   }, [abortRequest])
 
+  // 用服务端历史整体替换 SDK 消息；空数组必须保留为空，不能恢复新会话欢迎语。
+  const replaceHistory = useCallback(
+    (history: readonly ThreadMessageRead[]): void => {
+      setMessages(
+        history.map((item) => ({
+          id: item.id,
+          message: { role: item.role, content: item.content },
+          status: 'success',
+        })),
+      )
+    },
+    [setMessages],
+  )
+
+  // 切换历史会话时立即移除上一会话，避免加载期间误读旧内容。
+  const clearMessages = useCallback((): void => {
+    setMessages([])
+  }, [setMessages])
+
   const retry = useCallback(
     (messageId: string, threadId: string): void => {
       if (requestInFlightRef.current || !provider || !threadId) return
@@ -194,6 +214,8 @@ export function useChat() {
     setMode,
     send,
     abort,
+    clearMessages,
+    replaceHistory,
     retry,
     submitInsurance,
   }

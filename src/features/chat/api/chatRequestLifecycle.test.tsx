@@ -44,6 +44,50 @@ describe('请求最终状态与消息去重', () => {
     })
   }
 
+  it('服务端历史整体替换默认消息，并按角色解析为成功消息', async () => {
+    await act(async () => {
+      chat.replaceHistory([
+        {
+          id: 'history-user',
+          thread_id: 'thread',
+          role: 'user',
+          content: '历史提问',
+          created_at: '2026-09-11T10:00:00Z',
+        },
+        {
+          id: 'history-assistant',
+          thread_id: 'thread',
+          role: 'assistant',
+          content: '历史回答',
+          created_at: '2026-09-11T10:00:01Z',
+        },
+      ])
+    })
+
+    expect(chat.messages).toEqual([
+      {
+        id: 'history-user',
+        role: 'user',
+        content: [{ type: 'text', text: '历史提问' }],
+        status: 'success',
+        quote: undefined,
+      },
+      {
+        id: 'history-assistant',
+        role: 'assistant',
+        content: [{ type: 'text', text: '历史回答' }],
+        status: 'success',
+        quote: undefined,
+      },
+    ])
+
+    await act(async () => {
+      chat.clearMessages()
+      await vi.advanceTimersByTimeAsync(51)
+    })
+    expect(chat.messages).toEqual([])
+  })
+
   function deferredResponse() {
     let resolve: (value: Response) => void = () => undefined
     const promise = new Promise<Response>((done) => {

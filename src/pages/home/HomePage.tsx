@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 
 import { ChatHeader } from './components/ChatHeader/ChatHeader'
 import { ChatSidebar } from './components/ChatSidebar/ChatSidebar'
+import { useMobileViewportLayout } from './hooks/useMobileViewportLayout'
 import styles from './HomePage.module.scss'
 
 import {
@@ -15,14 +16,27 @@ import {
   type DynamicCardReadyHandler,
 } from '@/features/chat'
 import { useAuth } from '@/features/auth'
+import { PageLoading } from '@/shared/components/PageLoading'
 
 // 组合聊天页各区域，并协调流式回复、错误提示和自动滚动等页面级行为。
 function HomePageContent() {
-  const { messages, isReplying, isSlow, error, clearError } = useChatSession()
+  const {
+    messages,
+    isReplying,
+    isSlow,
+    error,
+    clearError,
+    isHistoryLoading,
+    historyError,
+    retryHistory,
+  } = useChatSession()
+  const selectedConversationId = useConversationStore((state) => state.selectedConversationId)
   const { isAuthenticated } = useAuth()
+  const chatPageRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLElement>(null)
   const handledSurfaceIdsRef = useRef(new Set<string>())
   const wasAuthenticatedRef = useRef(isAuthenticated)
+  useMobileViewportLayout(chatPageRef)
   // 思考或正文已在消息内展示时隐藏输入动画，避免和页面等待态重复反馈。
   const isReplyContentVisible = messages.some(
     (message) =>
@@ -53,26 +67,48 @@ function HomePageContent() {
   }, [clearError, isAuthenticated])
 
   return (
-    <div className={styles.chatPage}>
+    <div ref={chatPageRef} className={styles.chatPage}>
       <ChatHeader />
       <ChatSidebar />
       <DynamicCardHostProvider onReady={handleDynamicCardReady}>
         <main ref={scrollAreaRef} className={styles.scrollArea} aria-label="对话内容">
-          <div className={styles.messageList}>
-            {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} />
-            ))}
-            {isReplying && isSlow ? (
-              <p className={styles.waitingNotice} role="status">
-                响应较慢，请稍候
-              </p>
-            ) : null}
-            {isReplying && !isSlow && !isReplyContentVisible ? <TypingIndicator /> : null}
-          </div>
+          {isHistoryLoading ? (
+            <div className={styles.historyState}>
+              <PageLoading label="正在加载对话记录…" variant="inline" />
+            </div>
+          ) : historyError ? (
+            <div className={styles.historyState} role="alert">
+              <p className={styles.historyStateTitle}>对话记录加载失败</p>
+              <p className={styles.historyStateHint}>{historyError}</p>
+              <button
+                type="button"
+                className={styles.historyRetry}
+                onClick={() => void retryHistory()}
+              >
+                重试
+              </button>
+            </div>
+          ) : messages.length === 0 && selectedConversationId ? (
+            <div className={styles.historyState}>
+              <p className={styles.historyStateTitle}>暂无对话记录</p>
+            </div>
+          ) : (
+            <div className={styles.messageList}>
+              {messages.map((message) => (
+                <ChatMessage key={message.id} message={message} />
+              ))}
+              {isReplying && isSlow ? (
+                <p className={styles.waitingNotice} role="status">
+                  响应较慢，请稍候
+                </p>
+              ) : null}
+              {isReplying && !isSlow && !isReplyContentVisible ? <TypingIndicator /> : null}
+            </div>
+          )}
         </main>
       </DynamicCardHostProvider>
       <footer className={styles.composerBar}>
-        {error ? (
+        {error && !isHistoryLoading && !historyError ? (
           <div className={styles.errorNotice} role="alert">
             {error}
           </div>

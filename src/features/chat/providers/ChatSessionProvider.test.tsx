@@ -13,16 +13,19 @@ import {
   type ConversationStoreApi,
 } from '@/features/chat'
 
-const { chatMocks, requestCreateThread } = vi.hoisted(() => ({
+const { chatMocks, requestCreateThread, requestListThreadMessages } = vi.hoisted(() => ({
   chatMocks: {
     abort: vi.fn(),
+    clearMessages: vi.fn(),
     clearError: vi.fn(),
+    replaceHistory: vi.fn(),
     retry: vi.fn(),
     send: vi.fn(),
     setMode: vi.fn(),
     submitInsurance: vi.fn(),
   },
   requestCreateThread: vi.fn(),
+  requestListThreadMessages: vi.fn(),
 }))
 
 vi.mock('../hooks/useChat', () => ({
@@ -36,6 +39,7 @@ vi.mock('../hooks/useChat', () => ({
 }))
 
 vi.mock('../api/createThread', () => ({ requestCreateThread }))
+vi.mock('../api/listThreadMessages', () => ({ requestListThreadMessages }))
 
 const QUOTE = { messageId: 'assistant-1', role: 'assistant', text: '被引用内容' } as const
 const INSURANCE = {
@@ -53,6 +57,8 @@ function SessionHarness() {
       <span data-quote>{session.quote?.text ?? '无引用'}</span>
       <span data-error>{session.error ?? '无错误'}</span>
       <span data-busy>{String(session.isReplying)}</span>
+      <span data-history-loading>{String(session.isHistoryLoading)}</span>
+      <span data-history-error>{session.historyError ?? '无历史错误'}</span>
       <button type="button" onClick={() => session.selectQuote(QUOTE)}>
         选择引用
       </button>
@@ -70,6 +76,15 @@ function SessionHarness() {
       </button>
       <button type="button" onClick={() => session.retry('failed-answer')}>
         重试
+      </button>
+      <button type="button" onClick={() => void session.loadHistory('history-thread')}>
+        加载历史
+      </button>
+      <button type="button" onClick={() => void session.loadHistory('newer-thread')}>
+        加载新历史
+      </button>
+      <button type="button" onClick={() => void session.retryHistory()}>
+        重试历史
       </button>
       <button type="button" onClick={() => session.submitInsurance(INSURANCE)}>
         提交投保
@@ -92,6 +107,7 @@ describe('ChatSessionProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     requestCreateThread.mockResolvedValue('server-thread-1')
+    requestListThreadMessages.mockResolvedValue([])
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
     host = document.createElement('div')
     root = createRoot(host)
@@ -215,5 +231,87 @@ describe('ChatSessionProvider', () => {
   it('将投保提交交给会话控制 Hook', () => {
     click(host, '提交投保')
     expect(chatMocks.submitInsurance).toHaveBeenCalledWith(INSURANCE)
+  })
+
+  it('加载历史时终止回复、清空旧消息并替换为服务端消息', async () => {
+    const history = [
+      {
+        id: 'message-1',
+        thread_id: 'history-thread',
+        role: 'user',
+        content: '历史提问',
+        created_at: '2026-09-11T10:00:00Z',
+      },
+    ]
+    requestListThreadMessages.mockResolvedValue(history)
+
+    click(host, '加载历史')
+    expect(host.querySelector('[data-history-loading]')?.textContent).toBe('true')
+    expect(host.querySelector('[data-busy]')?.textContent).toBe('true')
+    expect(chatMocks.abort).toHaveBeenCalledOnce()
+    expect(chatMocks.clearMessages).toHaveBeenCalledOnce()
+    click(host, '发送')
+    expect(requestCreateThread).not.toHaveBeenCalled()
+    expect(chatMocks.send).not.toHaveBeenCalled()
+    await act(async () => {})
+
+    expect(requestListThreadMessages).toHaveBeenCalledWith('history-thread')
+    expect(chatMocks.replaceHistory).toHaveBeenCalledWith(history)
+    expect(host.querySelector('[data-history-loading]')?.textContent).toBe('false')
+  })
+
+  it('历史加载失败后显示错误，并可重试相同线程', async () => {
+    requestListThreadMessages.mockRejectedValueOnce(new Error('历史接口不可用'))
+
+    click(host, '加载历史')
+    await act(async () => {})
+    expect(host.querySelector('[data-history-error]')?.textContent).toBe('历史接口不可用')
+
+    requestListThreadMessages.mockResolvedValueOnce([])
+    click(host, '重试历史')
+    await act(async () => {})
+    expect(requestListThreadMessages).toHaveBeenLastCalledWith('history-thread')
+    expect(chatMocks.replaceHistory).toHaveBeenLastCalledWith([])
+  })
+
+  it('忽略晚于新会话返回的过期历史响应', async () => {
+    let resolveOld: (value: readonly never[]) => void = () => undefined
+    requestListThreadMessages
+      .mockReturnValueOnce(new Promise((resolve) => (resolveOld = resolve)))
+      .mockResolvedValueOnce([])
+
+    click(host, '加载历史')
+    click(host, '加载新历史')
+    await act(async () => {})
+    expect(chatMocks.replaceHistory).toHaveBeenCalledTimes(1)
+
+    await act(async () => resolveOld([]))
+    expect(chatMocks.replaceHistory).toHaveBeenCalledTimes(1)
+  })
+
+  it('切换历史会话后忽略迟到的建线程结果', async () => {
+    let resolveCreate: (threadId: string) => void = () => undefined
+    requestCreateThread.mockReturnValue(
+      new Promise<string>((resolve) => {
+        resolveCreate = resolve
+      }),
+    )
+    click(host, '发送')
+    expect(host.querySelector('[data-busy]')?.textContent).toBe('true')
+
+    act(() => {
+      store
+        .getState()
+        .setConversations([
+          { id: 'newer-thread', title: '历史会话', preview: '暂无消息', updatedAt: '刚刚' },
+        ])
+      store.getState().selectConversation('newer-thread')
+    })
+    click(host, '加载新历史')
+    await act(async () => {})
+    await act(async () => resolveCreate('late-created-thread'))
+
+    expect(store.getState().selectedConversationId).toBe('newer-thread')
+    expect(chatMocks.send).not.toHaveBeenCalled()
   })
 })

@@ -78,16 +78,15 @@ describe('ChatMessage', () => {
   it.each(['loading', 'updating', 'error', 'abort'] as const)(
     '%s 状态的 AI 消息不显示整条回答复制按钮',
     (status) => {
+      const message = {
+        id: `assistant-${status}`,
+        role: 'assistant',
+        content: [{ type: 'text', text: '回答' }],
+        status,
+      } as const
       const markup = renderToStaticMarkup(
-        <ChatSessionTestProvider>
-          <ChatMessage
-            message={{
-              id: `assistant-${status}`,
-              role: 'assistant',
-              content: [{ type: 'text', text: '回答' }],
-              status,
-            }}
-          />
+        <ChatSessionTestProvider value={{ messages: [message] }}>
+          <ChatMessage message={message} />
         </ChatSessionTestProvider>,
       )
 
