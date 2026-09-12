@@ -1,1 +1,0 @@
-export { SpriteIcon } from './SpriteIcon'
