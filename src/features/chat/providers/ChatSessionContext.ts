@@ -1,6 +1,6 @@
 import { createContext } from 'react'
 
-import type { ChatMessage, ChatMode, ChatQuote, InsuranceSubmission } from '../model/types'
+import type { CardActionPayload, ChatMessage, ChatMode, ChatQuote } from '../model/types'
 
 export interface ChatSessionValue {
   readonly messages: readonly ChatMessage[]
@@ -19,7 +19,7 @@ export interface ChatSessionValue {
   readonly loadHistory: (threadId: string) => Promise<void>
   readonly retryHistory: () => Promise<void>
   readonly retry: (messageId: string) => void
-  readonly submitInsurance: (submission: InsuranceSubmission) => void
+  readonly submitCardAction: (payload: CardActionPayload) => boolean
   readonly selectQuote: (quote: ChatQuote) => void
   readonly clearQuote: () => void
 }

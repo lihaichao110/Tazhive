@@ -63,11 +63,10 @@ export interface DynamicCardErrorMessageContent {
   readonly message: string
 }
 
-export interface InsuranceSubmission {
+export interface CardActionPayload {
   readonly name: string
-  readonly birthDate: string
-  readonly gender: 'male' | 'female'
-  readonly phone: string
+  readonly surfaceId: string
+  readonly context: Readonly<Record<string, unknown>>
 }
 
 export type ChatMessageContent =

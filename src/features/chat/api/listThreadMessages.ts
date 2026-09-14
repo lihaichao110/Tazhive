@@ -2,7 +2,7 @@ import type { ChatRole } from '../model/types'
 
 import { createHttpClient } from '@/shared/api'
 
-/** POST /api/v1/threads/{thread_id}/messages 返回的历史消息读取模型。 */
+/** GET /api/v1/threads/{thread_id}/messages 返回的历史消息读取模型。 */
 export interface ThreadMessageRead {
   readonly id: string
   readonly thread_id: string

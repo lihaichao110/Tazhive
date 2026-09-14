@@ -8,7 +8,7 @@ import type { ActionPayload } from '@ant-design/x-card'
 
 import { ChatSessionTestProvider } from '../../providers/chatSessionTestUtils'
 import { DynamicCardHostProvider } from '../../providers/DynamicCardHostProvider'
-import { InsuranceDynamicCard } from './InsuranceDynamicCard'
+import { PlanDynamicCard } from './PlanDynamicCard'
 
 interface BoxProps {
   readonly children: ReactNode
@@ -28,15 +28,10 @@ vi.mock('@ant-design/x-card', () => ({
   },
 }))
 
-const CARD = { type: 'dynamic-card', surfaceId: 'surface-1', commands: [] } as const
-const INSURANCE = {
-  name: '张三',
-  birthDate: '1990-01-01',
-  gender: 'male',
-  phone: '13800138000',
-} as const
+const CARD = { type: 'dynamic-card', surfaceId: 'plans-1', commands: [] } as const
+const CONTEXT = { group_code: 'G0264', group_name: '安享一生', insur_list: ['AYR'] }
 
-describe('InsuranceDynamicCard', () => {
+describe('PlanDynamicCard', () => {
   let host: HTMLDivElement
   let root: Root
 
@@ -52,13 +47,13 @@ describe('InsuranceDynamicCard', () => {
     vi.unstubAllGlobals()
   })
 
-  it('向宿主上报卡片元素并将合法投保动作交给会话', () => {
+  it('上报卡片元素并将合法方案动作交给当前会话', () => {
     const onReady = vi.fn()
-    const submitInsurance = vi.fn()
+    const submitCardAction = vi.fn()
     const view = (
-      <ChatSessionTestProvider value={{ submitInsurance }}>
+      <ChatSessionTestProvider value={{ submitCardAction }}>
         <DynamicCardHostProvider onReady={onReady}>
-          <InsuranceDynamicCard card={CARD} />
+          <PlanDynamicCard card={CARD} />
         </DynamicCardHostProvider>
       </ChatSessionTestProvider>
     )
@@ -67,15 +62,38 @@ describe('InsuranceDynamicCard', () => {
     act(() => root.render(view))
 
     expect(onReady).toHaveBeenCalledTimes(1)
-    expect(onReady).toHaveBeenCalledWith('surface-1', expect.any(HTMLDivElement))
+    expect(onReady).toHaveBeenCalledWith('plans-1', expect.any(HTMLDivElement))
 
     act(() => {
       boxCalls.at(-1)?.onAction({
-        name: 'insurance.submit',
-        surfaceId: 'surface-1',
-        context: { insurance: INSURANCE },
-      } as ActionPayload)
+        name: 'plan_apply',
+        surfaceId: 'plans-1',
+        context: CONTEXT,
+      })
     })
-    expect(submitInsurance).toHaveBeenCalledWith(INSURANCE)
+    expect(submitCardAction).toHaveBeenCalledWith({
+      name: 'plan_apply',
+      surfaceId: 'plans-1',
+      context: CONTEXT,
+    })
+  })
+
+  it('拒绝未知动作及来自其他 surface 的动作', () => {
+    const submitCardAction = vi.fn()
+    act(() =>
+      root.render(
+        <ChatSessionTestProvider value={{ submitCardAction }}>
+          <DynamicCardHostProvider onReady={() => undefined}>
+            <PlanDynamicCard card={CARD} />
+          </DynamicCardHostProvider>
+        </ChatSessionTestProvider>,
+      ),
+    )
+
+    act(() => {
+      boxCalls.at(-1)?.onAction({ name: 'unknown', surfaceId: 'plans-1', context: {} })
+      boxCalls.at(-1)?.onAction({ name: 'plan_apply', surfaceId: 'other', context: {} })
+    })
+    expect(submitCardAction).not.toHaveBeenCalled()
   })
 })

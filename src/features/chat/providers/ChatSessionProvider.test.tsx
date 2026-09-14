@@ -22,7 +22,7 @@ const { chatMocks, requestCreateThread, requestListThreadMessages } = vi.hoisted
     retry: vi.fn(),
     send: vi.fn(),
     setMode: vi.fn(),
-    submitInsurance: vi.fn(),
+    submitCardAction: vi.fn(),
   },
   requestCreateThread: vi.fn(),
   requestListThreadMessages: vi.fn(),
@@ -42,11 +42,10 @@ vi.mock('../api/createThread', () => ({ requestCreateThread }))
 vi.mock('../api/listThreadMessages', () => ({ requestListThreadMessages }))
 
 const QUOTE = { messageId: 'assistant-1', role: 'assistant', text: '被引用内容' } as const
-const INSURANCE = {
-  name: '张三',
-  birthDate: '1990-01-01',
-  gender: 'male',
-  phone: '13800138000',
+const CARD_ACTION = {
+  name: 'plan_apply',
+  surfaceId: 'plans-1',
+  context: { group_code: 'G0264', group_name: '安享一生' },
 } as const
 const FIRST_MESSAGE = '这是一段很长很长的首条消息内容需要被截断成短标题'
 
@@ -86,8 +85,8 @@ function SessionHarness() {
       <button type="button" onClick={() => void session.retryHistory()}>
         重试历史
       </button>
-      <button type="button" onClick={() => session.submitInsurance(INSURANCE)}>
-        提交投保
+      <button type="button" onClick={() => session.submitCardAction(CARD_ACTION)}>
+        提交卡片动作
       </button>
     </div>
   )
@@ -228,9 +227,10 @@ describe('ChatSessionProvider', () => {
     expect(chatMocks.retry).toHaveBeenCalledWith('failed-answer', 'existing-thread')
   })
 
-  it('将投保提交交给会话控制 Hook', () => {
-    click(host, '提交投保')
-    expect(chatMocks.submitInsurance).toHaveBeenCalledWith(INSURANCE)
+  it('将卡片动作连同当前线程 ID 交给会话控制 Hook', () => {
+    store.getState().adoptConversation('existing-thread', '既有会话')
+    click(host, '提交卡片动作')
+    expect(chatMocks.submitCardAction).toHaveBeenCalledWith(CARD_ACTION, 'existing-thread')
   })
 
   it('加载历史时终止回复、清空旧消息并替换为服务端消息', async () => {

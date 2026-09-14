@@ -13,14 +13,14 @@ import {
   serializeMessageContent,
 } from '../lib/messageContent'
 import {
-  createInsuranceConfirmationMessage,
-  createInsuranceConversationMessages,
-} from '../lib/insuranceMessages'
+  formatCardActionSummary,
+  parseCardActionMessage,
+  serializeCardActionMessage,
+} from '../lib/cardActionMessage'
 import { formatRequestError } from '../lib/formatRequestError'
 import { INITIAL_MESSAGES } from '../model/initialMessages'
 import { DEFAULT_CHAT_MODE, toDeepSeekThinking } from '../model/chatMode'
-import { isInsuranceIntent } from '../model/insuranceCard'
-import type { ChatMessage, ChatMessageStatus, ChatQuote, InsuranceSubmission } from '../model/types'
+import type { CardActionPayload, ChatMessage, ChatMessageStatus, ChatQuote } from '../model/types'
 
 import { readDeepSeekConfig } from '@/shared/config'
 
@@ -33,15 +33,16 @@ const DEFAULT_MESSAGES: DefaultMessageInfo<DeepSeekMessage>[] = INITIAL_MESSAGES
   status: message.status,
 }))
 
-// 隔离 SDK 消息结构与页面领域模型，只有助手消息需要解析 Mermaid 内容块。
+// 隔离 SDK 消息结构与页面领域模型，并将持久化的卡片动作恢复为友好摘要。
 function toChatMessage(info: MessageInfo<DeepSeekMessage>): ChatMessage {
+  const action = info.message.role === 'user' ? parseCardActionMessage(info.message.content) : null
   return {
     id: String(info.id),
     role: info.message.role,
     content:
       info.message.role === 'assistant'
         ? parseAssistantMessageContent(info.message.content, info.status as ChatMessageStatus)
-        : createTextMessageContent(info.message.content),
+        : createTextMessageContent(action ? formatCardActionSummary(action) : info.message.content),
     status: info.status as ChatMessageStatus,
     quote: info.message.quote,
   }
@@ -111,18 +112,9 @@ export function useChat() {
   }, [isRequesting])
 
   // threadId 是消息归属的服务端线程，新会话首条消息由上层先建线程后传入。
-  const send = useCallback(
-    (rawText: string, quote: undefined | ChatQuote, threadId: string): boolean => {
-      const content = rawText.trim()
-      if (!content || requestInFlightRef.current || !threadId) return false
-      if (isInsuranceIntent(content)) {
-        setRequestError(null)
-        setMessages((current) => [
-          ...current,
-          ...createInsuranceConversationMessages(content, quote),
-        ])
-        return true
-      }
+  const requestMessage = useCallback(
+    (message: DeepSeekMessage, threadId: string): boolean => {
+      if (requestInFlightRef.current || !threadId) return false
       if (!provider) {
         setRequestError(DEEPSEEK_CONFIG_RESULT.error)
         return false
@@ -135,7 +127,7 @@ export function useChat() {
         current.filter((info) => info.status !== 'error' && info.status !== 'abort'),
       )
       onRequest({
-        messages: [{ role: 'user', content, quote }],
+        messages: [message],
         thinking: toDeepSeekThinking(mode),
         thread_id: threadId,
       })
@@ -144,11 +136,28 @@ export function useChat() {
     [mode, onRequest, provider, setMessages],
   )
 
-  const submitInsurance = useCallback(
-    (submission: InsuranceSubmission): void => {
-      setMessages((current) => [...current, createInsuranceConfirmationMessage(submission)])
+  const send = useCallback(
+    (rawText: string, quote: undefined | ChatQuote, threadId: string): boolean => {
+      const content = rawText.trim()
+      if (!content || requestInFlightRef.current || !threadId) return false
+      return requestMessage({ role: 'user', content, quote }, threadId)
     },
-    [setMessages],
+    [requestMessage],
+  )
+
+  const submitCardAction = useCallback(
+    (payload: CardActionPayload, threadId: string): boolean => {
+      const requestContent = serializeCardActionMessage(payload)
+      return requestMessage(
+        {
+          role: 'user',
+          content: formatCardActionSummary(payload),
+          requestContent,
+        },
+        threadId,
+      )
+    },
+    [requestMessage],
   )
 
   const abort = useCallback(() => {
@@ -196,7 +205,14 @@ export function useChat() {
       requestInFlightRef.current = true
       setRequestError(null)
       onRequest({
-        messages: [{ role: 'user', content, quote: previousUser.message.quote }],
+        messages: [
+          {
+            role: 'user',
+            content,
+            quote: previousUser.message.quote,
+            requestContent: previousUser.message.requestContent,
+          },
+        ],
         thinking: toDeepSeekThinking(mode),
         thread_id: threadId,
       })
@@ -217,6 +233,6 @@ export function useChat() {
     clearMessages,
     replaceHistory,
     retry,
-    submitInsurance,
+    submitCardAction,
   }
 }

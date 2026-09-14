@@ -1,6 +1,6 @@
 import type { XAgentCommand_v0_9 } from '@ant-design/x-card'
 
-import { INSURANCE_CATALOG_ID } from '../model/insuranceCard'
+import { ALLOWED_PLAN_COMPONENTS, PLAN_CATALOG_ID } from '../model/planCard'
 import type {
   ChatMessageContent,
   ChatMessageStatus,
@@ -12,15 +12,7 @@ import { parseChartResponseEnvelope } from './chartMessageProtocol'
 const STRUCTURED_FENCE_PATTERN = /```[\t ]*(mermaid|a2ui)[\t ]*\r?\n([\s\S]*?)```/gi
 const THINK_OPEN_PATTERN = /^(?:\r?\n){0,2}<think(?:\s+status=["']done["'])?\s*>/i
 const THINK_CLOSE_TAG = '</think>'
-const CARD_LOAD_ERROR = '表单暂时无法加载，请稍后重试。'
-const ALLOWED_INSURANCE_COMPONENTS = new Set([
-  'InsuranceForm',
-  'Text',
-  'TextField',
-  'DateField',
-  'GenderField',
-  'SubmitButton',
-])
+const CARD_LOAD_ERROR = '方案卡片暂时无法加载，请稍后重试。'
 
 // 空字符串不生成内容块，防止页面渲染无意义的空段落。
 function toTextContent(text: string): ChatMessageContent[] {
@@ -35,7 +27,7 @@ function isAllowedComponent(value: unknown): boolean {
   return (
     isRecord(value) &&
     typeof value.component === 'string' &&
-    ALLOWED_INSURANCE_COMPONENTS.has(value.component)
+    ALLOWED_PLAN_COMPONENTS.has(value.component)
   )
 }
 
@@ -54,7 +46,7 @@ function isValidCardCommand(command: unknown, surfaceId: string): boolean {
   if (!commandKey) return false
   const payload = command[commandKey]
   if (!isRecord(payload) || payload.surfaceId !== surfaceId) return false
-  if (commandKey === 'createSurface') return payload.catalogId === INSURANCE_CATALOG_ID
+  if (commandKey === 'createSurface') return payload.catalogId === PLAN_CATALOG_ID
   if (commandKey === 'updateComponents') {
     return Array.isArray(payload.components) && payload.components.every(isAllowedComponent)
   }
@@ -62,7 +54,24 @@ function isValidCardCommand(command: unknown, surfaceId: string): boolean {
   return true
 }
 
-// 校验表单消息的协议版本、Surface 归属和组件白名单，阻止任意组件注入。
+function hasRequiredCardCommands(commands: readonly unknown[], surfaceId: string): boolean {
+  const hasSurface = commands.some(
+    (command) =>
+      isRecord(command) &&
+      isRecord(command.createSurface) &&
+      command.createSurface.surfaceId === surfaceId &&
+      command.createSurface.catalogId === PLAN_CATALOG_ID,
+  )
+  const hasComponents = commands.some(
+    (command) =>
+      isRecord(command) &&
+      isRecord(command.updateComponents) &&
+      command.updateComponents.surfaceId === surfaceId,
+  )
+  return hasSurface && hasComponents
+}
+
+// 校验方案卡片的协议版本、Surface 归属和组件白名单，阻止任意组件注入。
 function parseDynamicCard(source: string): DynamicCardMessageContent | null {
   try {
     const envelope: unknown = JSON.parse(source)
@@ -71,6 +80,7 @@ function parseDynamicCard(source: string): DynamicCardMessageContent | null {
     }
     const surfaceId = envelope.surfaceId
     if (!Array.isArray(envelope.commands) || envelope.commands.length === 0) return null
+    if (!hasRequiredCardCommands(envelope.commands, surfaceId)) return null
     if (!envelope.commands.every((command) => isValidCardCommand(command, surfaceId))) {
       return null
     }

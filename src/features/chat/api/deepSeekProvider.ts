@@ -21,6 +21,8 @@ export interface DeepSeekMessage extends XModelMessage {
   readonly role: ChatRole
   readonly content: string
   readonly quote?: ChatQuote
+  /** 与界面展示正文不同时，使用该字段作为实际发送给模型的正文。 */
+  readonly requestContent?: string
 }
 
 export interface DeepSeekRequestParams extends XModelParams {
@@ -88,9 +90,9 @@ class QuotedDeepSeekChatProvider extends DeepSeekChatProvider<
     const params = super.transformParams(requestParams, options)
     return {
       ...params,
-      messages: params.messages?.map(({ content, quote, role }) => ({
+      messages: params.messages?.map(({ content, quote, requestContent, role }) => ({
         role,
-        content: serializeQuotedPrompt(content, quote),
+        content: requestContent ?? serializeQuotedPrompt(content, quote),
       })),
     }
   }

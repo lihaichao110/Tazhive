@@ -113,6 +113,22 @@ describe('DeepSeek SSE 流', () => {
     expect(params.messages?.[0]).not.toHaveProperty('quote')
   })
 
+  it('卡片动作使用请求正文而不是界面摘要', () => {
+    const provider = createDeepSeekProvider(
+      { apiKey: 'test-key', baseUrl: 'https://example.com', modelName: 'deepseek-chat' },
+      { onError: () => undefined, onSuccess: () => undefined },
+    )
+    const actionJson = '{"type":"a2ui_action","name":"plan_apply"}'
+    provider.injectGetMessages(() => [
+      { role: 'user', content: '已选择「安享一生」正式投保', requestContent: actionJson },
+    ])
+
+    const params = provider.transformParams({}, provider.request.options)
+
+    expect(params.messages).toEqual([{ role: 'user', content: actionJson }])
+    expect(params.messages?.[0]).not.toHaveProperty('requestContent')
+  })
+
   it('HTTP 错误通过 onError 返回', async () => {
     const error = await new Promise<Error>((resolve) => {
       const request = XRequest('https://example.com', {

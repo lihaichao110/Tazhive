@@ -6,8 +6,8 @@ import type {
   ChatMessageStatus,
   ChatRole,
 } from '../../model/types'
-import { InsuranceDynamicCard } from '../InsuranceDynamicCard/InsuranceDynamicCard'
 import { MARKDOWN_CODE_COMPONENTS } from '../MarkdownCode/markdownCodeComponents'
+import { PlanDynamicCard } from '../PlanDynamicCard/PlanDynamicCard'
 import { ThinkingMessageContent } from '../ThinkingMessageContent/ThinkingMessageContent'
 
 import styles from './ChatMessageContent.module.scss'
@@ -118,7 +118,7 @@ function renderContent(
         />
       )
     case 'dynamic-card':
-      return <InsuranceDynamicCard key={`dynamic-card-${content.surfaceId}`} card={content} />
+      return <PlanDynamicCard key={`dynamic-card-${content.surfaceId}`} card={content} />
     case 'dynamic-card-error':
       return (
         <p key={`dynamic-card-error-${index}`} className={styles.cardError} role="alert">

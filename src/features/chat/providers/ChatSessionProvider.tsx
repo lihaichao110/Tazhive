@@ -94,6 +94,15 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
 
   const clearQuote = useCallback(() => setQuote(null), [])
 
+  // 动态卡片只存在于已建立的会话中，动作继续沿用当前线程请求模型。
+  const submitCardAction = useCallback(
+    (payload: Parameters<typeof chat.submitCardAction>[0]): boolean => {
+      if (isHistoryLoading) return false
+      return chat.submitCardAction(payload, getThreadId())
+    },
+    [chat, getThreadId, isHistoryLoading],
+  )
+
   // 登录成功后同步清理两条请求链路，避免旧会话错误在新令牌下继续显示。
   const clearError = useCallback((): void => {
     chat.clearError()
@@ -119,7 +128,7 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
       loadHistory,
       retryHistory,
       retry,
-      submitInsurance: chat.submitInsurance,
+      submitCardAction,
       selectQuote: setQuote,
       clearQuote,
     }),
@@ -136,6 +145,7 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
       retry,
       retryHistory,
       sendMessage,
+      submitCardAction,
     ],
   )
 
