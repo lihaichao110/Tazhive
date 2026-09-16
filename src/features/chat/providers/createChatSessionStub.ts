@@ -19,6 +19,9 @@ export function createChatSessionStub(overrides: Partial<ChatSessionValue> = {})
     retryHistory: async () => undefined,
     retry: () => undefined,
     submitCardAction: () => false,
+    submitInsuranceAction: async () => {
+      throw new Error('测试未配置投保动作')
+    },
     selectQuote: () => undefined,
     clearQuote: () => undefined,
     ...overrides,

@@ -36,10 +36,10 @@ interface PlanActionButtonProps {
   readonly onAction?: (name: string, context: Readonly<Record<string, unknown>>) => void
 }
 
-// 承载模型返回的方案集合，子节点顺序完全遵循 A2UI children 邻接关系。
+// 承载模型返回的方案集合，并允许键盘用户操作内容溢出后的内部滚动区域。
 export function PlanList({ children }: ChildrenProps) {
   return (
-    <section className={styles.list} aria-label="保险方案列表">
+    <section className={styles.list} aria-label="保险方案列表" tabIndex={0}>
       {children}
     </section>
   )

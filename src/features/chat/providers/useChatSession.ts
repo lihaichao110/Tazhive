@@ -12,8 +12,9 @@ export function useChatSession(): ChatSessionValue {
 // 为只触发业务动作的深层组件提供语义明确的会话入口。
 export function useChatSessionActions(): Pick<
   ChatSessionValue,
-  'abort' | 'clearQuote' | 'retry' | 'selectQuote' | 'submitCardAction'
+  'abort' | 'clearQuote' | 'retry' | 'selectQuote' | 'submitCardAction' | 'submitInsuranceAction'
 > {
-  const { abort, clearQuote, retry, selectQuote, submitCardAction } = useChatSession()
-  return { abort, clearQuote, retry, selectQuote, submitCardAction }
+  const { abort, clearQuote, retry, selectQuote, submitCardAction, submitInsuranceAction } =
+    useChatSession()
+  return { abort, clearQuote, retry, selectQuote, submitCardAction, submitInsuranceAction }
 }

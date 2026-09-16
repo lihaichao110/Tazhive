@@ -42,6 +42,90 @@ export const PLAN_CATALOG: Catalog = {
       },
       required: ['text', 'action'],
     },
+    InsuranceStepLayout: { type: 'object', properties: {} },
+    InsuranceStepIndicator: {
+      type: 'object',
+      properties: { current: { type: 'number' }, total: { type: 'number' }, title: stringProperty },
+      required: ['current', 'total', 'title'],
+    },
+    InsuranceForm: { type: 'object', properties: {} },
+    InsuranceFormError: {
+      type: 'object',
+      properties: { message: stringProperty },
+    },
+    InsuranceInput: {
+      type: 'object',
+      properties: {
+        field: stringProperty,
+        label: stringProperty,
+        inputType: stringProperty,
+        placeholder: stringProperty,
+        autocomplete: stringProperty,
+        bindingPath: stringProperty,
+        value: stringProperty,
+        error: stringProperty,
+        disabled: { type: 'boolean' },
+      },
+      required: ['field', 'label', 'bindingPath'],
+    },
+    InsuranceConsent: {
+      type: 'object',
+      properties: {
+        text: stringProperty,
+        bindingPath: stringProperty,
+        checked: { type: 'boolean' },
+        error: stringProperty,
+        disabled: { type: 'boolean' },
+      },
+      required: ['text', 'bindingPath'],
+    },
+    InsuranceRelationshipSelect: {
+      type: 'object',
+      properties: {
+        label: stringProperty,
+        bindingPath: stringProperty,
+        value: stringProperty,
+        error: stringProperty,
+        disabled: { type: 'boolean' },
+        options: { type: 'array' },
+      },
+      required: ['label', 'bindingPath', 'options'],
+    },
+    InsuranceSameApplicantHint: {
+      type: 'object',
+      properties: {
+        name: stringProperty,
+        mobile: stringProperty,
+        visible: { type: 'boolean' },
+      },
+      required: ['name', 'mobile'],
+    },
+    InsuranceSubmitButton: {
+      type: 'object',
+      properties: {
+        text: stringProperty,
+        disabled: { type: 'boolean' },
+        action: { type: 'object' },
+      },
+      required: ['text', 'action'],
+    },
+    InsurancePlanSummary: {
+      type: 'object',
+      properties: {
+        groupName: stringProperty,
+        title: stringProperty,
+        insurList: { type: 'array' },
+        applicant: { type: 'object' },
+        insured: { type: 'object' },
+        relationship: stringProperty,
+      },
+      required: ['groupName', 'title', 'insurList', 'applicant', 'insured', 'relationship'],
+    },
+    InsuranceCompletion: {
+      type: 'object',
+      properties: { applicationId: stringProperty },
+      required: ['applicationId'],
+    },
   },
 }
 

@@ -1,0 +1,67 @@
+import type { ThreadMessageRead } from './listThreadMessages'
+import type { InsuranceActionPayload } from '../model/types'
+
+import { createHttpClient, HttpError } from '@/shared/api'
+
+export interface InsuranceActionResponse {
+  readonly outcome: 'advanced' | 'completed' | 'duplicate'
+  readonly application_id: string
+  readonly current_step: string
+  readonly version: number
+  readonly user_message: ThreadMessageRead
+  readonly assistant_message: ThreadMessageRead
+}
+
+export class InsuranceActionError extends Error {
+  readonly fieldErrors: Readonly<Record<string, string>>
+
+  constructor(message: string, fieldErrors: Readonly<Record<string, string>> = {}) {
+    super(message)
+    this.name = 'InsuranceActionError'
+    this.fieldErrors = fieldErrors
+  }
+}
+
+const insuranceClient = createHttpClient()
+
+function readFieldErrors(data: unknown): Readonly<Record<string, string>> {
+  if (!data || typeof data !== 'object' || !('detail' in data)) return {}
+  const detail = data.detail
+  if (!detail || typeof detail !== 'object' || !('field_errors' in detail)) return {}
+  const errors = detail.field_errors
+  if (!errors || typeof errors !== 'object' || Array.isArray(errors)) return {}
+  return Object.fromEntries(
+    Object.entries(errors).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string',
+    ),
+  )
+}
+
+// 将 XCard action 映射到确定性投保接口，个人资料不经过聊天消息正文。
+export async function requestInsuranceAction(
+  threadId: string,
+  payload: InsuranceActionPayload,
+): Promise<InsuranceActionResponse> {
+  const applicationId = payload.context.application_id
+  const expectedVersion = payload.context.expected_version
+  const body = {
+    event_id: payload.eventId ?? crypto.randomUUID(),
+    name: payload.name,
+    source_surface_id: payload.surfaceId,
+    application_id: typeof applicationId === 'string' ? applicationId : undefined,
+    expected_version: typeof expectedVersion === 'number' ? expectedVersion : undefined,
+    context: payload.context,
+  }
+  try {
+    const response = await insuranceClient.post<InsuranceActionResponse>(
+      `/api/v1/threads/${encodeURIComponent(threadId)}/insurance/actions`,
+      body,
+    )
+    return response.data
+  } catch (error) {
+    if (error instanceof HttpError) {
+      throw new InsuranceActionError(error.message, readFieldErrors(error.data))
+    }
+    throw error
+  }
+}

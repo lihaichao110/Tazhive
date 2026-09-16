@@ -26,6 +26,9 @@ function readNonEmptyString(value: unknown): string | undefined {
 function readFastApiDetail(detail: unknown): string | undefined {
   const detailMessage = readNonEmptyString(detail)
   if (detailMessage) return detailMessage
+  if (typeof detail === 'object' && detail !== null && 'message' in detail) {
+    return readNonEmptyString(detail.message)
+  }
   if (!Array.isArray(detail)) return undefined
 
   const validationMessages = detail.flatMap((item) => {
@@ -51,7 +54,14 @@ function normalizeAxiosError(error: AxiosError): HttpError {
   const status = error.response?.status
   const serverMessage = readServerMessage(error.response?.data)
 
-  if (serverMessage) return new HttpError(serverMessage, { status, code: error.code, cause: error })
+  if (serverMessage) {
+    return new HttpError(serverMessage, {
+      status,
+      code: error.code,
+      cause: error,
+      data: error.response?.data,
+    })
+  }
   if (status === 401) {
     return new HttpError('登录状态已失效，请重新登录', { status, code: error.code, cause: error })
   }
@@ -65,6 +75,7 @@ function normalizeAxiosError(error: AxiosError): HttpError {
     status,
     code: error.code,
     cause: error,
+    data: error.response?.data,
   })
 }
 

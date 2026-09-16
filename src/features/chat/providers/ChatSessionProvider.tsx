@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 
 import { ChatSessionContext, type ChatSessionValue } from './ChatSessionContext'
 import { requestListThreadMessages } from '../api/listThreadMessages'
+import { requestInsuranceAction } from '../api/submitInsuranceAction'
 import { useChat } from '../hooks/useChat'
 import { useThreadBootstrap } from '../hooks/useThreadBootstrap'
-import type { ChatQuote } from '../model/types'
+import type { ChatQuote, InsuranceActionPayload } from '../model/types'
 
 interface ChatSessionProviderProps {
   readonly children: ReactNode
@@ -24,6 +25,8 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
   const [quote, setQuote] = useState<ChatQuote | null>(null)
   const [isHistoryLoading, setIsHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState<string | null>(null)
+  const [isInsuranceActionPending, setIsInsuranceActionPending] = useState(false)
+  const insuranceActionPendingRef = useRef(false)
   const historyThreadIdRef = useRef('')
   // 递增序号用于隔离过期响应；切换更快的后续会话时，旧请求不得覆盖新内容。
   const historyRequestIdRef = useRef(0)
@@ -103,6 +106,27 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
     [chat, getThreadId, isHistoryLoading],
   )
 
+  // 投保表单走独立确定性接口，成功消息由服务端统一落库后追加到当前会话。
+  const submitInsuranceAction = useCallback(
+    async (payload: InsuranceActionPayload) => {
+      const threadId = getThreadId()
+      if (!threadId || isHistoryLoading || chat.isReplying || insuranceActionPendingRef.current) {
+        throw new Error('当前暂时无法提交投保信息')
+      }
+      insuranceActionPendingRef.current = true
+      setIsInsuranceActionPending(true)
+      try {
+        const result = await requestInsuranceAction(threadId, payload)
+        chat.appendHistoryMessages([result.user_message, result.assistant_message])
+        return result
+      } finally {
+        insuranceActionPendingRef.current = false
+        setIsInsuranceActionPending(false)
+      }
+    },
+    [chat, getThreadId, isHistoryLoading],
+  )
+
   // 登录成功后同步清理两条请求链路，避免旧会话错误在新令牌下继续显示。
   const clearError = useCallback((): void => {
     chat.clearError()
@@ -114,7 +138,7 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
     () => ({
       messages: chat.messages,
       // 建线程等待期与流式回复期统一呈现“回复中”，避免点击发送后界面看似卡住。
-      isReplying: chat.isReplying || isPreparing || isHistoryLoading,
+      isReplying: chat.isReplying || isPreparing || isHistoryLoading || isInsuranceActionPending,
       isSlow: chat.isSlow,
       error: chat.error ?? bootstrapError,
       isHistoryLoading,
@@ -129,6 +153,7 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
       retryHistory,
       retry,
       submitCardAction,
+      submitInsuranceAction,
       selectQuote: setQuote,
       clearQuote,
     }),
@@ -139,6 +164,7 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
       clearQuote,
       historyError,
       isHistoryLoading,
+      isInsuranceActionPending,
       isPreparing,
       loadHistory,
       quote,
@@ -146,6 +172,7 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
       retryHistory,
       sendMessage,
       submitCardAction,
+      submitInsuranceAction,
     ],
   )
 

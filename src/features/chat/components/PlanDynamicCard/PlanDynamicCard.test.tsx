@@ -47,11 +47,12 @@ describe('PlanDynamicCard', () => {
     vi.unstubAllGlobals()
   })
 
-  it('上报卡片元素并将合法方案动作交给当前会话', () => {
+  it('上报卡片元素并将合法方案动作交给当前会话', async () => {
     const onReady = vi.fn()
     const submitCardAction = vi.fn()
+    const submitInsuranceAction = vi.fn().mockResolvedValue({ outcome: 'advanced' })
     const view = (
-      <ChatSessionTestProvider value={{ submitCardAction }}>
+      <ChatSessionTestProvider value={{ submitCardAction, submitInsuranceAction }}>
         <DynamicCardHostProvider onReady={onReady}>
           <PlanDynamicCard card={CARD} />
         </DynamicCardHostProvider>
@@ -64,18 +65,23 @@ describe('PlanDynamicCard', () => {
     expect(onReady).toHaveBeenCalledTimes(1)
     expect(onReady).toHaveBeenCalledWith('plans-1', expect.any(HTMLDivElement))
 
-    act(() => {
+    await act(async () => {
       boxCalls.at(-1)?.onAction({
         name: 'plan_apply',
         surfaceId: 'plans-1',
         context: CONTEXT,
       })
+      await Promise.resolve()
     })
-    expect(submitCardAction).toHaveBeenCalledWith({
-      name: 'plan_apply',
-      surfaceId: 'plans-1',
-      context: CONTEXT,
-    })
+    expect(submitInsuranceAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'plan_apply',
+        surfaceId: 'plans-1',
+        context: CONTEXT,
+        eventId: expect.any(String),
+      }),
+    )
+    expect(submitCardAction).not.toHaveBeenCalled()
   })
 
   it('拒绝未知动作及来自其他 surface 的动作', () => {

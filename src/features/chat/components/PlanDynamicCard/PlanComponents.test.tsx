@@ -48,6 +48,7 @@ describe('PlanComponents', () => {
     expect(host.textContent).toContain('可投保')
     expect(host.querySelector('img')?.alt).toBe('安享一生')
     expect(host.querySelectorAll('li')).toHaveLength(2)
+    expect(host.querySelector('section')?.tabIndex).toBe(0)
     expect(host.querySelector('article')?.children[0].tagName).toBe('HEADER')
     expect(host.querySelector('article')?.children[1].tagName).toBe('IMG')
     expect(host.querySelector('ul')?.getAttribute('aria-label')).toBe('方案亮点')
