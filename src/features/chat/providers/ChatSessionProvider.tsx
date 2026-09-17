@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { ChatSessionContext, type ChatSessionValue } from './ChatSessionContext'
+import { useConversationStore } from './useConversationStore'
 import { requestListThreadMessages } from '../api/listThreadMessages'
 import { requestInsuranceAction } from '../api/submitInsuranceAction'
 import { useChat } from '../hooks/useChat'
@@ -22,6 +23,7 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
     getThreadId,
     isPreparing,
   } = useThreadBootstrap()
+  const selectedConversationId = useConversationStore((state) => state.selectedConversationId)
   const [quote, setQuote] = useState<ChatQuote | null>(null)
   const [isHistoryLoading, setIsHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState<string | null>(null)
@@ -71,6 +73,15 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
   const retryHistory = useCallback(async (): Promise<void> => {
     await loadHistory(historyThreadIdRef.current)
   }, [loadHistory])
+
+  // 路由往返（如跳转知识库后返回）会卸载本组件并丢失内存中的消息，而全局会话选中态仍保留。
+  // 挂载时若已绑定会话，以服务端历史为准恢复一次；后续切换由侧边栏点击 loadHistory 驱动。
+  const hasRestoredOnMountRef = useRef(false)
+  useEffect(() => {
+    if (hasRestoredOnMountRef.current) return
+    hasRestoredOnMountRef.current = true
+    if (selectedConversationId) void loadHistory(selectedConversationId)
+  }, [selectedConversationId, loadHistory])
 
   // 新会话首条消息先建线程再发送；建线程失败则拒绝发送，让用户保留草稿重试。
   // 发送成功后引用已进入消息协议，应同步清空；请求被拒绝时保留引用供用户重试。

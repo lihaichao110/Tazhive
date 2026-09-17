@@ -68,4 +68,19 @@ describe('isStaleInsuranceFormCard', () => {
     expect(isStaleInsuranceFormCard(applicant, messages)).toBe(true)
     expect(isStaleInsuranceFormCard(insured, messages)).toBe(true)
   })
+
+  it('完成卡不带步骤指示器，出现后确认卡同样视为陈旧', () => {
+    const confirm = cardOf('ins-confirm', insuranceCardCommands(3, true))
+    const completion = cardOf('ins-done', [
+      {
+        version: 'v0.9',
+        updateComponents: {
+          surfaceId: 'ins-done',
+          components: [{ id: 'done', component: 'InsuranceCompletion', applicationId: 'app-1' }],
+        },
+      },
+    ])
+    const messages = [messageOf(confirm), messageOf(completion)]
+    expect(isStaleInsuranceFormCard(confirm, messages)).toBe(true)
+  })
 })

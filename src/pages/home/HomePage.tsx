@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { ChatHeader } from './components/ChatHeader/ChatHeader'
 import { ChatSidebar } from './components/ChatSidebar/ChatSidebar'
 import { useMobileViewportLayout } from './hooks/useMobileViewportLayout'
+import { useStickyBottomScroll } from './hooks/useStickyBottomScroll'
 import styles from './HomePage.module.scss'
 
 import {
@@ -13,7 +14,6 @@ import {
   TypingIndicator,
   useChatSession,
   useConversationStore,
-  type DynamicCardReadyHandler,
 } from '@/features/chat'
 import { useAuth } from '@/features/auth'
 import { PageLoading } from '@/shared/components/PageLoading'
@@ -33,9 +33,12 @@ function HomePageContent() {
   const selectedConversationId = useConversationStore((state) => state.selectedConversationId)
   const { isAuthenticated } = useAuth()
   const chatPageRef = useRef<HTMLDivElement>(null)
-  const scrollAreaRef = useRef<HTMLElement>(null)
-  const handledSurfaceIdsRef = useRef(new Set<string>())
   const wasAuthenticatedRef = useRef(isAuthenticated)
+  const { scrollAreaRef, messageListRef, handleDynamicCardReady } = useStickyBottomScroll({
+    messages,
+    isReplying,
+    isSlow,
+  })
   useMobileViewportLayout(chatPageRef)
   // 思考或正文已在消息内展示时隐藏输入动画，避免和页面等待态重复反馈。
   const isReplyContentVisible = messages.some(
@@ -44,22 +47,6 @@ function HomePageContent() {
       (message.status === 'loading' || message.status === 'updating') &&
       message.content.length > 0,
   )
-  // 卡片挂载后按当前页面策略滚到底部，同一 Surface 只处理一次。
-  const handleDynamicCardReady = useCallback<DynamicCardReadyHandler>((surfaceId) => {
-    const scrollArea = scrollAreaRef.current
-    if (!scrollArea || handledSurfaceIdsRef.current.has(surfaceId)) return
-
-    handledSurfaceIdsRef.current.add(surfaceId)
-    scrollArea.scrollTop = scrollArea.scrollHeight
-  }, [])
-
-  // 消息内容更新后统一滚到底部，文本与动态表单同时出现时保持连续阅读位置。
-  useEffect(() => {
-    const scrollArea = scrollAreaRef.current
-    if (!scrollArea) return
-    scrollArea.scrollTop = scrollArea.scrollHeight
-  }, [messages, isReplying, isSlow])
-
   // 仅响应一次真实的登录成功转换；初次读取本地令牌时不应清除既有错误状态。
   useEffect(() => {
     if (!wasAuthenticatedRef.current && isAuthenticated) clearError()
@@ -93,7 +80,7 @@ function HomePageContent() {
               <p className={styles.historyStateTitle}>暂无对话记录</p>
             </div>
           ) : (
-            <div className={styles.messageList}>
+            <div ref={messageListRef} className={styles.messageList}>
               {messages.map((message) => (
                 <ChatMessage key={message.id} message={message} />
               ))}

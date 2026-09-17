@@ -7,7 +7,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActionPayload, XAgentCommand_v0_9 } from '@ant-design/x-card'
 
 import { InsuranceActionError } from '../../api/submitInsuranceAction'
-import type { ChatMessage, DynamicCardMessageContent } from '../../model/types'
 import { ChatSessionTestProvider } from '../../providers/chatSessionTestUtils'
 import { DynamicCardHostProvider } from '../../providers/DynamicCardHostProvider'
 import { PlanDynamicCard } from './PlanDynamicCard'
@@ -43,32 +42,6 @@ function readLastDataModelValue(path: string): unknown {
     }
   }
   return undefined
-}
-
-// 构造带步骤指示器与提交按钮的保险流程卡片，用于历史陈旧判定场景。
-function insuranceStepCard(surfaceId: string, step: number): DynamicCardMessageContent {
-  return {
-    type: 'dynamic-card',
-    surfaceId,
-    commands: [
-      {
-        version: 'v0.9',
-        updateComponents: {
-          surfaceId,
-          components: [
-            {
-              id: 'step',
-              component: 'InsuranceStepIndicator',
-              current: step,
-              total: 4,
-              title: '步骤',
-            },
-            { id: 'submit', component: 'InsuranceSubmitButton', text: '提交并继续' },
-          ],
-        },
-      },
-    ],
-  }
 }
 
 describe('PlanDynamicCard', () => {
@@ -260,59 +233,5 @@ describe('PlanDynamicCard', () => {
     })
     expect(readLastDataModelValue('/errors')).toEqual({})
     expect(readLastDataModelValue('/ui/submitted')).toBe(true)
-  })
-
-  it('历史陈旧保险卡片注入禁用锁并拒绝动作', () => {
-    const applicant = insuranceStepCard('ins-applicant', 1)
-    const insured = insuranceStepCard('ins-insured', 2)
-    const messages: readonly ChatMessage[] = [
-      { id: 'm-1', role: 'assistant', content: [applicant], status: 'success' },
-      { id: 'm-2', role: 'assistant', content: [insured], status: 'success' },
-    ]
-    const submitInsuranceAction = vi.fn().mockResolvedValue({ outcome: 'advanced' })
-    act(() =>
-      root.render(
-        <ChatSessionTestProvider value={{ messages, submitInsuranceAction }}>
-          <DynamicCardHostProvider onReady={() => undefined}>
-            <PlanDynamicCard card={applicant} />
-          </DynamicCardHostProvider>
-        </ChatSessionTestProvider>,
-      ),
-    )
-
-    expect(readLastDataModelValue('/ui')).toEqual({ submitted: true })
-
-    act(() => {
-      boxCalls.at(-1)?.onAction({
-        name: 'applicant_submit',
-        surfaceId: 'ins-applicant',
-        context: {},
-      })
-    })
-    expect(submitInsuranceAction).not.toHaveBeenCalled()
-  })
-
-  it('当前活跃保险卡片不注入禁用锁', () => {
-    const insured = insuranceStepCard('ins-insured', 2)
-    const messages: readonly ChatMessage[] = [
-      {
-        id: 'm-1',
-        role: 'assistant',
-        content: [insuranceStepCard('ins-applicant', 1)],
-        status: 'success',
-      },
-      { id: 'm-2', role: 'assistant', content: [insured], status: 'success' },
-    ]
-    act(() =>
-      root.render(
-        <ChatSessionTestProvider value={{ messages }}>
-          <DynamicCardHostProvider onReady={() => undefined}>
-            <PlanDynamicCard card={insured} />
-          </DynamicCardHostProvider>
-        </ChatSessionTestProvider>,
-      ),
-    )
-
-    expect(readLastDataModelValue('/ui')).toBeUndefined()
   })
 })

@@ -7,6 +7,7 @@ import { reportHttpError } from './httpErrorReporter'
 export interface HttpClientOptions {
   readonly baseURL?: string
   readonly timeout?: number
+  readonly reportErrors?: boolean
 }
 
 const DEVELOPMENT_API_PREFIX = ''
@@ -112,7 +113,7 @@ export function createHttpClient(options: HttpClientOptions = {}): AxiosInstance
     if (normalizedError.status === 401) {
       reportAccessTokenRejected(readRequestAccessToken(error))
     }
-    reportHttpError(normalizedError)
+    if (options.reportErrors !== false) reportHttpError(normalizedError)
     return Promise.reject(normalizedError)
   })
 

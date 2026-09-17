@@ -178,4 +178,15 @@ describe('createHttpClient', () => {
     await expect(client.get('/failure', { adapter })).rejects.toBe(originalError)
     expect(originalError).not.toBeInstanceOf(HttpError)
   })
+
+  it('reportErrors 为 false 时跳过全局错误上报', async () => {
+    const reportHttpError = vi.fn()
+    vi.doMock('./httpErrorReporter', () => ({ reportHttpError }))
+    const { createHttpClient: createSilentClient } = await import('./createHttpClient')
+
+    const client = createSilentClient({ reportErrors: false })
+    await client.get('/failure', { adapter: createErrorAdapter(500) }).catch(() => undefined)
+
+    expect(reportHttpError).not.toHaveBeenCalled()
+  })
 })

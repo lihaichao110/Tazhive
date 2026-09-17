@@ -5,7 +5,7 @@ import {
   InsuranceActionError,
   normalizeInsuranceActionContext,
 } from '../../api/submitInsuranceAction'
-import { isStaleInsuranceFormCard } from '../../model/insuranceCardProgress'
+import { isStaleInsuranceFormCard, readInsuranceCardStep } from '../../model/insuranceCardProgress'
 import { ALLOWED_INSURANCE_ACTIONS, PLAN_PRE_UNDERWRITE_ACTION } from '../../model/planCard'
 import type { DynamicCardMessageContent, InsuranceActionPayload } from '../../model/types'
 import { useChatSession } from '../../providers/useChatSession'
@@ -32,6 +32,11 @@ import {
   InsuranceSubmitButton,
 } from './InsuranceComponents'
 import { InsuranceSubmissionProvider } from './InsuranceSubmissionContext'
+import {
+  withStaleCardLock,
+  withSubmittedSnapshot,
+  type SubmittedSnapshot,
+} from './insuranceRuntimeCommands'
 import './planCatalog'
 import styles from './PlanDynamicCard.module.scss'
 
@@ -42,23 +47,6 @@ interface PlanDynamicCardProps {
 interface DataModelUpdate {
   readonly path: string
   readonly value: unknown
-}
-
-// 为历史陈旧保险卡片追加 submitted 锁：字段与提交按钮全部禁用。
-// 历史消息可能保留已被后续步骤超越的旧表单命令，仅靠命令原始状态会重新渲染为可编辑。
-function withStaleCardLock(
-  commands: readonly XAgentCommand_v0_9[],
-  surfaceId: string,
-  locked: boolean,
-): readonly XAgentCommand_v0_9[] {
-  if (!locked) return commands
-  return [
-    ...commands,
-    {
-      version: 'v0.9',
-      updateDataModel: { surfaceId, path: '/ui', value: { submitted: true } },
-    },
-  ]
 }
 
 const COMPONENTS = {
@@ -94,6 +82,8 @@ export function PlanDynamicCard({ card }: PlanDynamicCardProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const actionInFlightRef = useRef(false)
   const insuranceEventIdRef = useRef<string | null>(null)
+  // 已提交快照：提交成功后服务端命令重置会以空种子清空表单，靠快照在重放后回填。
+  const submittedSnapshotRef = useRef<SubmittedSnapshot | null>(null)
   const latestCommandsRef = useRef(card.commands)
   latestCommandsRef.current = card.commands
   const commandSignature = JSON.stringify(card.commands)
@@ -105,8 +95,20 @@ export function PlanDynamicCard({ card }: PlanDynamicCardProps) {
 
   // 服务端以稳定消息 ID 原地更新步骤时，用最新命令替换旧卡片运行态；
   // 消息列表推进使本卡变为陈旧时（如服务端按步骤追加新卡片消息），同样保持禁用锁。
+  // 重放会按服务端种子清空 /form 并复位 submitted，快照步骤未变时须在尾部回填。
   useEffect(() => {
-    setRuntimeCommands(withStaleCardLock(latestCommandsRef.current, card.surfaceId, isStaleCard))
+    const snapshot = submittedSnapshotRef.current
+    const targetStep = readInsuranceCardStep(latestCommandsRef.current)
+    // 同 surface 原地推进到新步骤时作废旧快照，新步骤表单不得预填上一步数据。
+    const snapshotMatches = snapshot !== null && snapshot.step === targetStep
+    if (snapshot && !snapshotMatches) submittedSnapshotRef.current = null
+    setRuntimeCommands(
+      withSubmittedSnapshot(
+        withStaleCardLock(latestCommandsRef.current, card.surfaceId, isStaleCard),
+        card.surfaceId,
+        snapshotMatches ? snapshot : null,
+      ),
+    )
     insuranceEventIdRef.current = null
   }, [card.surfaceId, commandSignature, isStaleCard])
 
@@ -153,7 +155,11 @@ export function PlanDynamicCard({ card }: PlanDynamicCardProps) {
       .then(() => {
         insuranceEventIdRef.current = null
         // 成功后保留 /form 已填数据供客户回看，字段禁用由 /ui/submitted 承担；
-        // 后续步骤由服务端命令原地替换并重置数据模型，不依赖客户端清空。
+        // 快照同步落入 ref，运行时命令被服务端消息重置后由同步 effect 重新回填。
+        submittedSnapshotRef.current = {
+          form: formSnapshot,
+          step: readInsuranceCardStep(card.commands),
+        }
         updateDataModel([
           { path: '/errors', value: {} },
           { path: '/ui/submitted', value: true },
