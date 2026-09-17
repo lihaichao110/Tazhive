@@ -37,6 +37,37 @@ function createPlanReply(surfaceId: string): string {
   })}\n\`\`\``
 }
 
+// 投保人表单卡使用 InsuranceGenderRadio，守护解析白名单与运行时 catalog 的组件名同步。
+function createApplicantFormReply(surfaceId: string): string {
+  return `\`\`\`a2ui\n${JSON.stringify({
+    surfaceId,
+    commands: [
+      { version: 'v0.9', createSurface: { surfaceId, catalogId: PLAN_CATALOG_ID } },
+      {
+        version: 'v0.9',
+        updateComponents: {
+          surfaceId,
+          components: [
+            { id: 'root', component: 'InsuranceStepLayout', children: ['form'] },
+            { id: 'form', component: 'InsuranceForm', children: ['field_gender'] },
+            {
+              id: 'field_gender',
+              component: 'InsuranceGenderRadio',
+              label: '性别',
+              bindingPath: 'form/gender',
+              options: [
+                { label: '男', value: 'MALE' },
+                { label: '女', value: 'FEMALE' },
+              ],
+            },
+          ],
+        },
+      },
+      { version: 'v0.9', updateDataModel: { surfaceId, path: '/form', value: {} } },
+    ],
+  })}\n\`\`\``
+}
+
 describe('A2UI 消息解析', () => {
   it('将包含多张方案的 v0.9 围栏解析为动态卡片', () => {
     const content = parseAssistantMessageContent(createPlanReply('plans-test'))
@@ -46,6 +77,18 @@ describe('A2UI 消息解析', () => {
       type: 'dynamic-card',
       surfaceId: 'plans-test',
       commands: expect.arrayContaining([expect.objectContaining({ version: 'v0.9' })]),
+    })
+  })
+
+  it('将含 InsuranceGenderRadio 的投保表单围栏解析为动态卡片', () => {
+    const content = parseAssistantMessageContent(
+      createApplicantFormReply('insurance_apply-test_applicant'),
+    )
+
+    expect(content).toHaveLength(1)
+    expect(content[0]).toMatchObject({
+      type: 'dynamic-card',
+      surfaceId: 'insurance_apply-test_applicant',
     })
   })
 

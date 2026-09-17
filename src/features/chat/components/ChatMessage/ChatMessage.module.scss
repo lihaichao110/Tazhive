@@ -24,6 +24,12 @@
 
 .assistantBubble {
   width: 100%;
+
+  /* Bubble 根为横向 flex 容器，body 作为 flex 子项默认按内容收缩；
+     动态卡片需要 body 撑满整行，Markdown 文本自身仍是 fit-content，不受影响 */
+  :global(.ant-bubble-body) {
+    width: 100%;
+  }
 }
 
 .assistantRow {

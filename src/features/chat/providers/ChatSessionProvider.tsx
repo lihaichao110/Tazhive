@@ -117,7 +117,10 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
       setIsInsuranceActionPending(true)
       try {
         const result = await requestInsuranceAction(threadId, payload)
-        chat.appendHistoryMessages([result.user_message, result.assistant_message])
+        chat.upsertHistoryMessages([
+          ...(result.user_message ? [result.user_message] : []),
+          result.assistant_message,
+        ])
         return result
       } finally {
         insuranceActionPendingRef.current = false

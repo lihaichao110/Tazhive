@@ -34,7 +34,7 @@ export const ALLOWED_PLAN_COMPONENTS = new Set([
   'InsuranceInput',
   'InsuranceConsent',
   'InsuranceRelationshipSelect',
-  'InsuranceSameApplicantHint',
+  'InsuranceGenderRadio',
   'InsuranceSubmitButton',
   'InsurancePlanSummary',
   'InsuranceCompletion',

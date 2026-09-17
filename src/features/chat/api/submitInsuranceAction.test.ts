@@ -15,13 +15,23 @@ describe('requestInsuranceAction', () => {
   afterEach(() => post.mockReset())
 
   it('将 A2UI context 发送到线程投保接口', async () => {
-    const response = { outcome: 'advanced', application_id: 'app', current_step: 'X', version: 1 }
+    const response = {
+      outcome: 'advanced',
+      application_id: 'app',
+      current_step: 'INSURED',
+      version: 1,
+      user_message: null,
+    }
     post.mockResolvedValueOnce({ data: response })
     await expect(
       requestInsuranceAction('thread/1', {
         name: 'applicant_submit',
         surfaceId: 'surface-1',
-        context: { application_id: 'app', expected_version: 1, form: { name: '张三' } },
+        context: {
+          application_id: 'app',
+          expected_version: 1,
+          form: { value: { name: '张三' } },
+        },
       }),
     ).resolves.toBe(response)
     expect(post).toHaveBeenCalledWith(
@@ -31,6 +41,11 @@ describe('requestInsuranceAction', () => {
         source_surface_id: 'surface-1',
         application_id: 'app',
         expected_version: 1,
+        context: {
+          application_id: 'app',
+          expected_version: 1,
+          form: { name: '张三' },
+        },
       }),
     )
   })

@@ -6,9 +6,9 @@ import { createHttpClient, HttpError } from '@/shared/api'
 export interface InsuranceActionResponse {
   readonly outcome: 'advanced' | 'completed' | 'duplicate'
   readonly application_id: string
-  readonly current_step: string
+  readonly current_step: 'APPLICANT' | 'INSURED' | 'CONFIRM' | 'COMPLETED'
   readonly version: number
-  readonly user_message: ThreadMessageRead
+  readonly user_message: ThreadMessageRead | null
   readonly assistant_message: ThreadMessageRead
 }
 
@@ -23,6 +23,21 @@ export class InsuranceActionError extends Error {
 }
 
 const insuranceClient = createHttpClient()
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+// 兼容 XCard 将路径引用解析为 { value: data } 的结构，对外始终使用扁平表单契约。
+export function normalizeInsuranceActionContext(
+  context: Readonly<Record<string, unknown>>,
+): Readonly<Record<string, unknown>> {
+  const form = context.form
+  if (isRecord(form) && Object.keys(form).length === 1 && isRecord(form.value)) {
+    return { ...context, form: form.value }
+  }
+  return context
+}
 
 function readFieldErrors(data: unknown): Readonly<Record<string, string>> {
   if (!data || typeof data !== 'object' || !('detail' in data)) return {}
@@ -42,15 +57,16 @@ export async function requestInsuranceAction(
   threadId: string,
   payload: InsuranceActionPayload,
 ): Promise<InsuranceActionResponse> {
-  const applicationId = payload.context.application_id
-  const expectedVersion = payload.context.expected_version
+  const context = normalizeInsuranceActionContext(payload.context)
+  const applicationId = context.application_id
+  const expectedVersion = context.expected_version
   const body = {
     event_id: payload.eventId ?? crypto.randomUUID(),
     name: payload.name,
     source_surface_id: payload.surfaceId,
     application_id: typeof applicationId === 'string' ? applicationId : undefined,
     expected_version: typeof expectedVersion === 'number' ? expectedVersion : undefined,
-    context: payload.context,
+    context,
   }
   try {
     const response = await insuranceClient.post<InsuranceActionResponse>(

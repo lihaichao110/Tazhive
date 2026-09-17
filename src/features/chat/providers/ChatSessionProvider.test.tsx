@@ -13,20 +13,23 @@ import {
   type ConversationStoreApi,
 } from '@/features/chat'
 
-const { chatMocks, requestCreateThread, requestListThreadMessages } = vi.hoisted(() => ({
-  chatMocks: {
-    abort: vi.fn(),
-    clearMessages: vi.fn(),
-    clearError: vi.fn(),
-    replaceHistory: vi.fn(),
-    retry: vi.fn(),
-    send: vi.fn(),
-    setMode: vi.fn(),
-    submitCardAction: vi.fn(),
-  },
-  requestCreateThread: vi.fn(),
-  requestListThreadMessages: vi.fn(),
-}))
+const { chatMocks, requestCreateThread, requestInsuranceAction, requestListThreadMessages } =
+  vi.hoisted(() => ({
+    chatMocks: {
+      abort: vi.fn(),
+      clearMessages: vi.fn(),
+      clearError: vi.fn(),
+      replaceHistory: vi.fn(),
+      retry: vi.fn(),
+      send: vi.fn(),
+      setMode: vi.fn(),
+      submitCardAction: vi.fn(),
+      upsertHistoryMessages: vi.fn(),
+    },
+    requestCreateThread: vi.fn(),
+    requestInsuranceAction: vi.fn(),
+    requestListThreadMessages: vi.fn(),
+  }))
 
 vi.mock('../hooks/useChat', () => ({
   useChat: () => ({
@@ -40,6 +43,7 @@ vi.mock('../hooks/useChat', () => ({
 
 vi.mock('../api/createThread', () => ({ requestCreateThread }))
 vi.mock('../api/listThreadMessages', () => ({ requestListThreadMessages }))
+vi.mock('../api/submitInsuranceAction', () => ({ requestInsuranceAction }))
 
 const QUOTE = { messageId: 'assistant-1', role: 'assistant', text: '被引用内容' } as const
 const CARD_ACTION = {
@@ -87,6 +91,18 @@ function SessionHarness() {
       </button>
       <button type="button" onClick={() => session.submitCardAction(CARD_ACTION)}>
         提交卡片动作
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          void session.submitInsuranceAction({
+            name: 'applicant_submit',
+            surfaceId: 'insurance-1',
+            context: {},
+          })
+        }
+      >
+        提交投保步骤
       </button>
     </div>
   )
@@ -231,6 +247,30 @@ describe('ChatSessionProvider', () => {
     store.getState().adoptConversation('existing-thread', '既有会话')
     click(host, '提交卡片动作')
     expect(chatMocks.submitCardAction).toHaveBeenCalledWith(CARD_ACTION, 'existing-thread')
+  })
+
+  it('投保步骤成功后按稳定消息 ID 更新卡片，并兼容空用户消息', async () => {
+    const assistantMessage = {
+      id: 'insurance-message',
+      thread_id: 'existing-thread',
+      role: 'assistant',
+      content: '下一步骤卡片',
+      created_at: '2026-09-16T00:00:00Z',
+    }
+    requestInsuranceAction.mockResolvedValue({
+      outcome: 'advanced',
+      application_id: 'APP-1',
+      current_step: 'INSURED',
+      version: 2,
+      user_message: null,
+      assistant_message: assistantMessage,
+    })
+    store.getState().adoptConversation('existing-thread', '既有会话')
+
+    click(host, '提交投保步骤')
+    await act(async () => {})
+
+    expect(chatMocks.upsertHistoryMessages).toHaveBeenCalledWith([assistantMessage])
   })
 
   it('加载历史时终止回复、清空旧消息并替换为服务端消息', async () => {

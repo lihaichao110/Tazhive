@@ -178,21 +178,22 @@ export function useChat() {
     [setMessages],
   )
 
-  // 确定性业务接口返回的消息已经由服务端落库，直接追加即可保持实时与历史同形。
-  const appendHistoryMessages = useCallback(
+  // 工作流消息使用稳定 ID：已存在时原位替换，不存在时再追加，保持单卡片推进。
+  const upsertHistoryMessages = useCallback(
     (history: readonly ThreadMessageRead[]): void => {
       setMessages((current) => {
-        const existingIds = new Set(current.map((item) => String(item.id)))
-        return [
-          ...current,
-          ...history
-            .filter((item) => !existingIds.has(item.id))
-            .map((item) => ({
-              id: item.id,
-              message: { role: item.role, content: item.content },
-              status: 'success' as const,
-            })),
-        ]
+        const next = [...current]
+        history.forEach((item) => {
+          const message = {
+            id: item.id,
+            message: { role: item.role, content: item.content },
+            status: 'success' as const,
+          }
+          const existingIndex = next.findIndex((entry) => String(entry.id) === item.id)
+          if (existingIndex >= 0) next[existingIndex] = message
+          else next.push(message)
+        })
+        return next
       })
     },
     [setMessages],
@@ -252,7 +253,7 @@ export function useChat() {
     abort,
     clearMessages,
     replaceHistory,
-    appendHistoryMessages,
+    upsertHistoryMessages,
     retry,
     submitCardAction,
   }

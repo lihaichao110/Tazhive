@@ -88,6 +88,22 @@ describe('请求最终状态与消息去重', () => {
     expect(chat.messages).toEqual([])
   })
 
+  it('使用稳定消息 ID 原位更新工作流卡片，不追加重复气泡', async () => {
+    const baseMessage = {
+      id: 'insurance-flow-1',
+      thread_id: 'thread',
+      role: 'assistant' as const,
+      created_at: '2026-09-11T10:00:00Z',
+    }
+    await act(async () => {
+      chat.replaceHistory([{ ...baseMessage, content: '投保人资料' }])
+      chat.upsertHistoryMessages([{ ...baseMessage, content: '被保险人资料' }])
+    })
+
+    expect(chat.messages).toHaveLength(1)
+    expect(chat.messages[0]?.content).toEqual([{ type: 'text', text: '被保险人资料' }])
+  })
+
   function deferredResponse() {
     let resolve: (value: Response) => void = () => undefined
     const promise = new Promise<Response>((done) => {

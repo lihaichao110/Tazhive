@@ -1,8 +1,8 @@
 .layout {
   display: grid;
   width: min(100%, 680px);
-  padding: 20px;
-  gap: 18px;
+  padding: 16px;
+  gap: 14px;
   border: 1px solid var(--color-border);
   border-radius: 16px;
   background: var(--color-background);
@@ -10,35 +10,48 @@
 
 .stepHeader {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 10px;
+  gap: 14px;
 
   h3 {
     margin: 0;
+    font-size: 17px;
   }
 }
 
-.stepCount,
-.stepTotal {
-  color: var(--color-text-secondary, var(--color-text));
-  font-size: 13px;
+.stepHeader :global(.ant-steps) {
+  width: 100%;
 }
 
 .form {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .field,
 .consent {
-  display: grid;
-  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.field :global(.ant-form-item-label) {
+  padding-bottom: 5px;
+}
+
+.field :global(.ant-form-item-label > label) {
+  color: var(--color-text);
   font-size: 14px;
+}
+
+.field :global(.ant-form-item-explain-error),
+.consent :global(.ant-form-item-explain-error) {
+  color: #c62828;
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .field input,
 .field select {
+  width: 100%;
+  min-width: 0;
   min-height: 40px;
   padding: 8px 11px;
   border: 1px solid var(--color-border);
@@ -53,42 +66,36 @@
   outline-offset: 1px;
 }
 
-.error {
-  color: #c62828;
-  font-size: 12px;
-}
 .formError {
   margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #ffccc7;
+  border-radius: 8px;
+  background: #fff2f0;
   color: #c62828;
   font-size: 13px;
 }
 
-.consent > span:first-child {
+.consent label {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-}
-
-.hint {
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: #f0f7f4;
-  color: #286b50;
-}
-
-.submit {
-  min-height: 42px;
-  border: 0;
-  border-radius: 8px;
-  background: #028550;
-  color: #fff;
   cursor: pointer;
 }
 
-.submit:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
+.consent input {
+  margin-top: 3px;
+}
+
+.field :global(.ant-radio-group) {
+  min-height: 40px;
+  align-content: center;
+}
+
+.submit {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 8px;
 }
 
 .summary {
@@ -107,29 +114,65 @@
 
 .completion {
   display: grid;
-  gap: 8px;
-  padding: 20px;
-  border-radius: 14px;
-  background: #f0f7f4;
+  gap: 14px;
+  padding: 28px 24px;
+  border: 1px solid #b7eb8f;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f6ffed 0%, var(--color-background) 100%);
+  text-align: center;
 }
-.completion strong {
-  color: #028550;
-  font-size: 18px;
-}
-.completion span,
-.completion p {
+
+.completion h2 {
   margin: 0;
+  color: #028550;
+  font-size: 22px;
+}
+
+.completionLead {
+  margin: 0;
+  color: var(--color-text-secondary, var(--color-text));
+}
+
+.successIcon {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: #52c41a;
+  color: #fff;
+  font-size: 34px;
+  line-height: 1;
+  place-items: center;
+}
+
+.completionSummary {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  margin: 0;
+  padding: 16px 18px;
+  gap: 10px 14px;
+  border-radius: 12px;
+  background: var(--color-background);
+  text-align: left;
+}
+
+.completionSummary dt {
+  color: var(--color-text-secondary, var(--color-text));
+}
+
+.completionSummary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 @media (width <= 560px) {
   .layout {
-    padding: 16px;
+    padding: 14px;
   }
-  .stepHeader {
-    grid-template-columns: auto 1fr;
-  }
-  .stepTotal {
-    grid-column: 2;
+  /* 窄屏下四个步骤标题空间不足，缩小字号减少「投保人信 息」这类生硬换行 */
+  .stepHeader :global(.ant-steps-item-title) {
+    font-size: 12px;
   }
   .summary {
     grid-template-columns: 1fr;
@@ -137,5 +180,15 @@
   }
   .summary dd {
     margin-bottom: 8px;
+  }
+  .completion {
+    padding: 22px 16px;
+  }
+  .completionSummary {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .completionSummary dd {
+    margin-bottom: 7px;
   }
 }

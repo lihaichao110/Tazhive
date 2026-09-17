@@ -79,7 +79,7 @@ export const PLAN_CATALOG: Catalog = {
       },
       required: ['text', 'bindingPath'],
     },
-    InsuranceRelationshipSelect: {
+    InsuranceGenderRadio: {
       type: 'object',
       properties: {
         label: stringProperty,
@@ -91,14 +91,17 @@ export const PLAN_CATALOG: Catalog = {
       },
       required: ['label', 'bindingPath', 'options'],
     },
-    InsuranceSameApplicantHint: {
+    InsuranceRelationshipSelect: {
       type: 'object',
       properties: {
-        name: stringProperty,
-        mobile: stringProperty,
-        visible: { type: 'boolean' },
+        label: stringProperty,
+        bindingPath: stringProperty,
+        value: stringProperty,
+        error: stringProperty,
+        disabled: { type: 'boolean' },
+        options: { type: 'array' },
       },
-      required: ['name', 'mobile'],
+      required: ['label', 'bindingPath', 'options'],
     },
     InsuranceSubmitButton: {
       type: 'object',
@@ -123,7 +126,9 @@ export const PLAN_CATALOG: Catalog = {
     },
     InsuranceCompletion: {
       type: 'object',
-      properties: { applicationId: stringProperty },
+      properties: {
+        applicationId: stringProperty,
+      },
       required: ['applicationId'],
     },
   },
