@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act } from 'react'
+import { act, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -8,14 +8,33 @@ import { ChatHeader } from './ChatHeader'
 
 import { ConversationStoreProvider, createConversationStore } from '@/features/chat'
 
-const auth = vi.hoisted(() => ({
-  error: null as string | null,
-  isAuthenticated: false,
-  isLoggingIn: false,
-  login: vi.fn(async () => undefined),
-}))
+const auth = vi.hoisted(() => {
+  const listeners = new Set<() => void>()
 
-vi.mock('@/features/auth', () => ({ useAuth: () => auth }))
+  return {
+    error: null as string | null,
+    isAuthenticated: false,
+    isLoggingIn: false,
+    login: vi.fn(async () => undefined),
+    subscribe: (listener: () => void): (() => void) => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    notify: (): void => listeners.forEach((listener) => listener()),
+  }
+})
+
+vi.mock('@/features/auth', async () => {
+  const { useSyncExternalStore } = await import('react')
+
+  return {
+    // 登录态经 useSyncExternalStore 订阅，变化时可靠触发消费组件重渲染。
+    useAuth: () => {
+      useSyncExternalStore(auth.subscribe, () => auth.isAuthenticated)
+      return auth
+    },
+  }
+})
 
 vi.mock('./LoginDrawer', () => ({
   LoginDrawer: ({
@@ -36,6 +55,18 @@ vi.mock('./LoginDrawer', () => ({
       </div>
     ) : null,
 }))
+
+// 模拟页面层持有登录抽屉开关的受控用法。
+function ControlledChatHeader() {
+  const [isLoginDrawerOpen, setIsLoginDrawerOpen] = useState(false)
+
+  return (
+    <ChatHeader
+      isLoginDrawerOpen={isLoginDrawerOpen}
+      onLoginDrawerOpenChange={setIsLoginDrawerOpen}
+    />
+  )
+}
 
 let host: HTMLDivElement
 let root: Root
@@ -63,7 +94,7 @@ describe('ChatHeader', () => {
     act(() => {
       root.render(
         <ConversationStoreProvider store={store}>
-          <ChatHeader />
+          <ControlledChatHeader />
         </ConversationStoreProvider>,
       )
     })
@@ -80,7 +111,7 @@ describe('ChatHeader', () => {
     act(() => {
       root.render(
         <ConversationStoreProvider store={store}>
-          <ChatHeader />
+          <ControlledChatHeader />
         </ConversationStoreProvider>,
       )
     })
@@ -95,7 +126,7 @@ describe('ChatHeader', () => {
     act(() => {
       root.render(
         <ConversationStoreProvider store={store}>
-          <ChatHeader />
+          <ControlledChatHeader />
         </ConversationStoreProvider>,
       )
     })
@@ -119,7 +150,7 @@ describe('ChatHeader', () => {
     act(() => {
       root.render(
         <ConversationStoreProvider store={store}>
-          <ChatHeader />
+          <ControlledChatHeader />
         </ConversationStoreProvider>,
       )
     })
@@ -131,11 +162,7 @@ describe('ChatHeader', () => {
 
     auth.isAuthenticated = true
     act(() => {
-      root.render(
-        <ConversationStoreProvider store={store}>
-          <ChatHeader />
-        </ConversationStoreProvider>,
-      )
+      auth.notify()
     })
 
     expect(host.querySelector('[role="dialog"]')).toBeNull()

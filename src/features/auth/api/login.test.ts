@@ -14,13 +14,18 @@ describe('requestLogin', () => {
 
   it('使用提交的账号密码请求登录接口并返回整理后的令牌', async () => {
     post.mockResolvedValue({
-      data: { access_token: '  access-token  ', token_type: 'bearer' },
+      data: {
+        access_token: '  access-token  ',
+        refresh_token: '  refresh-token  ',
+        token_type: 'bearer',
+      },
     })
 
     await expect(
       requestLogin({ username: 'custom-user', password: 'custom-password' }),
     ).resolves.toEqual({
       access_token: 'access-token',
+      refresh_token: 'refresh-token',
       token_type: 'bearer',
     })
     expect(post).toHaveBeenCalledWith('/api/v1/auth/login', {
@@ -30,11 +35,24 @@ describe('requestLogin', () => {
   })
 
   it('拒绝缺少有效访问令牌的响应', async () => {
-    post.mockResolvedValue({ data: { access_token: '  ', token_type: 'bearer' } })
+    post.mockResolvedValue({
+      data: { access_token: '  ', refresh_token: 'refresh-token', token_type: 'bearer' },
+    })
 
     await expect(requestLogin({ username: 'user', password: 'password' })).rejects.toMatchObject({
       name: 'HttpError',
-      message: '登录响应缺少有效访问令牌',
+      message: '登录响应缺少有效令牌',
+    })
+  })
+
+  it('拒绝缺少刷新令牌的响应', async () => {
+    post.mockResolvedValue({
+      data: { access_token: 'access-token', token_type: 'bearer' },
+    })
+
+    await expect(requestLogin({ username: 'user', password: 'password' })).rejects.toMatchObject({
+      name: 'HttpError',
+      message: '登录响应缺少有效令牌',
     })
   })
 })

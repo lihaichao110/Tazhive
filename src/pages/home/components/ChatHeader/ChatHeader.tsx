@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { PanelLeft, UserRound } from 'lucide-react'
 
 import styles from './ChatHeader.module.scss'
@@ -7,9 +7,15 @@ import { LoginDrawer } from './LoginDrawer'
 import { selectActiveConversationTitle, useConversationStore } from '@/features/chat'
 import { useAuth } from '@/features/auth'
 
+interface ChatHeaderProps {
+  /** 登录抽屉是否展开；开关状态由页面层持有，供侧边栏“去登录”复用同一入口。 */
+  readonly isLoginDrawerOpen: boolean
+  /** 页面层回调：顶部登录按钮打开，抽屉关闭或登录成功时关闭。 */
+  readonly onLoginDrawerOpenChange: (isOpen: boolean) => void
+}
+
 // 展示聊天页顶部操作，并直接消费会话导航 Store 中与头部相关的最小状态切片。
-export function ChatHeader() {
-  const [isLoginDrawerOpen, setIsLoginDrawerOpen] = useState(false)
+export function ChatHeader({ isLoginDrawerOpen, onLoginDrawerOpenChange }: ChatHeaderProps) {
   // 尚未绑定线程的新会话（含首次使用）以“新对话”作为标题兜底。
   const activeConversationTitle = useConversationStore(selectActiveConversationTitle) || '新对话'
   const isSidebarOpen = useConversationStore((state) => state.isSidebarOpen)
@@ -17,8 +23,8 @@ export function ChatHeader() {
   const { error: loginError, isAuthenticated, isLoggingIn, login } = useAuth()
 
   useEffect(() => {
-    if (isAuthenticated) setIsLoginDrawerOpen(false)
-  }, [isAuthenticated])
+    if (isAuthenticated) onLoginDrawerOpenChange(false)
+  }, [isAuthenticated, onLoginDrawerOpenChange])
 
   return (
     <>
@@ -51,7 +57,7 @@ export function ChatHeader() {
             <button
               type="button"
               className={styles.loginButton}
-              onClick={() => setIsLoginDrawerOpen(true)}
+              onClick={() => onLoginDrawerOpenChange(true)}
             >
               登录
             </button>
@@ -62,7 +68,7 @@ export function ChatHeader() {
         error={loginError}
         isLoggingIn={isLoggingIn}
         isOpen={isLoginDrawerOpen}
-        onClose={() => setIsLoginDrawerOpen(false)}
+        onClose={() => onLoginDrawerOpenChange(false)}
         onLogin={login}
       />
     </>

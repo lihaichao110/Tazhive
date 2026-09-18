@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ChatHeader } from './components/ChatHeader/ChatHeader'
 import { ChatSidebar } from './components/ChatSidebar/ChatSidebar'
@@ -32,6 +32,9 @@ function HomePageContent() {
   } = useChatSession()
   const selectedConversationId = useConversationStore((state) => state.selectedConversationId)
   const { isAuthenticated } = useAuth()
+  // 登录抽屉开关由页面层持有，顶部登录按钮与侧边栏“去登录”共用同一入口。
+  const [isLoginDrawerOpen, setIsLoginDrawerOpen] = useState(false)
+  const openLoginDrawer = useCallback(() => setIsLoginDrawerOpen(true), [])
   const chatPageRef = useRef<HTMLDivElement>(null)
   const wasAuthenticatedRef = useRef(isAuthenticated)
   const { scrollAreaRef, messageListRef, handleDynamicCardReady } = useStickyBottomScroll({
@@ -55,8 +58,11 @@ function HomePageContent() {
 
   return (
     <div ref={chatPageRef} className={styles.chatPage}>
-      <ChatHeader />
-      <ChatSidebar />
+      <ChatHeader
+        isLoginDrawerOpen={isLoginDrawerOpen}
+        onLoginDrawerOpenChange={setIsLoginDrawerOpen}
+      />
+      <ChatSidebar onGoToLogin={openLoginDrawer} />
       <DynamicCardHostProvider onReady={handleDynamicCardReady}>
         <main ref={scrollAreaRef} className={styles.scrollArea} aria-label="对话内容">
           {isHistoryLoading ? (

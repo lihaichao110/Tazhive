@@ -1,82 +1,62 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { requestLogin } from '../api/login'
-import { verifySession } from '../api/verifySession'
 import {
   clearStoredAccessToken,
   readStoredAccessToken,
-  saveAccessToken,
+  saveTokenPair,
 } from '../model/accessTokenStorage'
+import { requestRefreshedTokenPair } from '../model/tokenRefresh'
 import type { AuthController, AuthStatus, LoginCredentials } from '../model/types'
 import { AuthContext } from './AuthContext'
 
-import { registerAccessTokenProvider, registerAccessTokenRejectedHandler } from '@/shared/api'
+import {
+  registerAccessTokenProvider,
+  registerAccessTokenRejectedHandler,
+  registerAccessTokenRefresher,
+} from '@/shared/api'
 
 interface AuthProviderProps {
   readonly children: ReactNode
 }
 
-// 本地令牌只是待验证凭据；启动校验成功后才向业务层暴露已登录状态。
+// 本地令牌直接作为已登录凭据暴露，有效性由统一拦截器的静默刷新与 401 拒绝链路兜底。
 export function AuthProvider({ children }: AuthProviderProps) {
   const [storedToken] = useState(readStoredAccessToken)
-  const [status, setStatus] = useState<AuthStatus>(storedToken ? 'checking' : 'unauthenticated')
-  const [verificationError, setVerificationError] = useState<string | null>(null)
-  const [verificationVersion, setVerificationVersion] = useState(0)
+  const [status, setStatus] = useState<AuthStatus>(
+    storedToken ? 'authenticated' : 'unauthenticated',
+  )
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const accessTokenRef = useRef(storedToken)
   const loginInFlightRef = useRef(false)
-  const verificationRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     const unregisterTokenProvider = registerAccessTokenProvider(() => accessTokenRef.current)
     const unregisterRejectedHandler = registerAccessTokenRejectedHandler((rejectedToken) => {
       // 只注销被服务端拒绝的当前会话，避免旧请求的延迟 401 清除新登录状态。
       if (accessTokenRef.current !== rejectedToken) return
-      verificationRef.current?.abort()
       accessTokenRef.current = null
       clearStoredAccessToken()
       setStatus('unauthenticated')
-      setVerificationError(null)
       setError(null)
+    })
+    const unregisterRefresher = registerAccessTokenRefresher(async () => {
+      const tokenBeforeRefresh = accessTokenRef.current
+      const nextTokens = await requestRefreshedTokenPair()
+      if (!nextTokens) return false
+      // 刷新期间发生重新登录时丢弃结果，避免旧刷新响应覆盖新会话的令牌。
+      if (accessTokenRef.current !== tokenBeforeRefresh) return false
+      saveTokenPair(nextTokens)
+      accessTokenRef.current = nextTokens.access_token
+      return true
     })
 
     return () => {
+      unregisterRefresher()
       unregisterRejectedHandler()
       unregisterTokenProvider()
     }
-  }, [])
-
-  useEffect(() => {
-    const token = accessTokenRef.current
-    if (!token) return
-    const controller = new AbortController()
-    verificationRef.current = controller
-
-    // 注册鉴权回调后才发起校验；取消及令牌比对隔离卸载、重试和旧会话响应。
-    const isCurrent = () => !controller.signal.aborted && accessTokenRef.current === token
-    void verifySession(controller.signal).then(
-      () => {
-        if (isCurrent()) setStatus('authenticated')
-      },
-      (verificationFailure: unknown) => {
-        if (!isCurrent()) return
-        setVerificationError(
-          verificationFailure instanceof Error ? verificationFailure.message : '请稍后重试',
-        )
-        setStatus('error')
-      },
-    )
-
-    return () => controller.abort()
-  }, [verificationVersion])
-
-  const retryVerification = useCallback((): void => {
-    if (!accessTokenRef.current) return
-    verificationRef.current?.abort()
-    setVerificationError(null)
-    setStatus('checking')
-    setVerificationVersion((version) => version + 1)
   }, [])
 
   const login = useCallback(async (credentials: LoginCredentials): Promise<void> => {
@@ -88,7 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     try {
       const response = await requestLogin(credentials)
-      saveAccessToken(response.access_token)
+      saveTokenPair(response)
       // ref 与持久化存储同步更新，确保紧随登录之后的请求立即读取到新令牌。
       accessTokenRef.current = response.access_token
       setStatus('authenticated')
@@ -103,14 +83,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const controller = useMemo<AuthController>(
     () => ({
       status,
-      verificationError,
-      retryVerification,
       isAuthenticated: status === 'authenticated',
       isLoggingIn,
       error,
       login,
     }),
-    [status, verificationError, retryVerification, error, isLoggingIn, login],
+    [status, error, isLoggingIn, login],
   )
 
   return <AuthContext.Provider value={controller}>{children}</AuthContext.Provider>

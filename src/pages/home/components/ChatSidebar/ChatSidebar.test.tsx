@@ -13,12 +13,14 @@ import {
   createConversationStore,
   type ConversationStoreApi,
 } from '@/features/chat'
+import { HttpError } from '@/shared/api'
 
-const { drawerCalls, requestListThreads, abort, loadHistory } = vi.hoisted(() => ({
+const { drawerCalls, requestListThreads, abort, loadHistory, goToLogin } = vi.hoisted(() => ({
   drawerCalls: [] as DrawerProps[],
   requestListThreads: vi.fn(),
   abort: vi.fn(),
   loadHistory: vi.fn(),
+  goToLogin: vi.fn(),
 }))
 
 vi.mock('antd', () => ({
@@ -42,7 +44,7 @@ function renderSidebar(): ConversationStoreApi {
   act(() => {
     root.render(
       <ConversationStoreProvider store={store}>
-        <ChatSidebar />
+        <ChatSidebar onGoToLogin={goToLogin} />
       </ConversationStoreProvider>,
     )
   })
@@ -70,6 +72,7 @@ describe('ChatSidebar', () => {
     requestListThreads.mockReset()
     abort.mockClear()
     loadHistory.mockReset()
+    goToLogin.mockClear()
     loadHistory.mockResolvedValue(undefined)
     host = document.createElement('div')
     document.body.append(host)
@@ -152,14 +155,33 @@ describe('ChatSidebar', () => {
     expect(host.querySelector('img')?.getAttribute('src')).toContain('tazhive-running')
   })
 
-  it('拉取失败时展示错误提示', async () => {
+  it('拉取失败时展示错误提示且不提供按钮', async () => {
     requestListThreads.mockRejectedValue(new Error('网络连接异常，请检查后重试'))
     const store = renderSidebar()
 
     act(() => store.getState().toggleSidebar())
     await act(async () => {})
 
-    expect(host.querySelector('[role="alert"]')?.textContent).toContain('网络连接异常')
+    const alert = host.querySelector('[role="alert"]')
+    expect(alert?.textContent).toContain('网络连接异常')
+    // 非登录失效的失败仅提示，不渲染任何操作按钮。
+    expect(alert?.querySelector('button')).toBeNull()
+  })
+
+  it('登录失效时展示去登录按钮，点击后关闭抽屉并请求打开登录抽屉', async () => {
+    requestListThreads.mockRejectedValue(
+      new HttpError('登录状态已失效，请重新登录', { status: 401 }),
+    )
+    const store = renderSidebar()
+
+    act(() => store.getState().toggleSidebar())
+    await act(async () => {})
+
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain('登录状态已失效')
+    clickButton('去登录')
+
+    expect(store.getState().isSidebarOpen).toBe(false)
+    expect(goToLogin).toHaveBeenCalledOnce()
   })
 
   it('首次使用无会话记录时展示空状态指引', async () => {

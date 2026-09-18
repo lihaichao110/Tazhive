@@ -27,15 +27,20 @@ function getConversationIconColorIndexes(conversationIds: readonly string[]): nu
   }, [])
 }
 
+interface ChatSidebarProps {
+  /** 登录失效时由页面层打开登录抽屉；侧边栏自身的关闭动作仍由 Store 负责。 */
+  readonly onGoToLogin: () => void
+}
+
 // 提供覆盖式对话导航：顶部新建入口 + 历史列表，仅订阅列表、选中项与抽屉动作。
-export function ChatSidebar() {
+export function ChatSidebar({ onGoToLogin }: ChatSidebarProps) {
   const conversations = useConversationStore((state) => state.conversations)
   const selectedConversationId = useConversationStore((state) => state.selectedConversationId)
   const isOpen = useConversationStore((state) => state.isSidebarOpen)
   const closeSidebar = useConversationStore((state) => state.closeSidebar)
   const selectConversation = useConversationStore((state) => state.selectConversation)
   const startNewConversation = useConversationStore((state) => state.startNewConversation)
-  const { isLoading, errorMessage, reload } = useThreadList()
+  const { isLoading, errorMessage, isUnauthorized } = useThreadList()
   const { abort, loadHistory } = useChatSession()
   const conversationIconColorIndexes = getConversationIconColorIndexes(
     conversations.map((conversation) => conversation.id),
@@ -52,6 +57,12 @@ export function ChatSidebar() {
   const handleSelectConversation = (conversationId: string): void => {
     selectConversation(conversationId)
     void loadHistory(conversationId)
+  }
+
+  // 登录失效时关闭侧边栏回到主页面，并请页面层拉起登录抽屉，避免用户找不到入口。
+  const handleGoToLogin = (): void => {
+    closeSidebar()
+    onGoToLogin()
   }
 
   return (
@@ -79,9 +90,11 @@ export function ChatSidebar() {
         {errorMessage ? (
           <p className={styles.listStatus} role="alert">
             {errorMessage}
-            <button type="button" className={styles.retryButton} onClick={reload}>
-              重试
-            </button>
+            {isUnauthorized ? (
+              <button type="button" className={styles.goLoginButton} onClick={handleGoToLogin}>
+                去登录
+              </button>
+            ) : null}
           </p>
         ) : isLoading ? (
           <PageLoading label="正在加载历史对话…" variant="inline" />

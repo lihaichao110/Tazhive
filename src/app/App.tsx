@@ -1,7 +1,6 @@
 import { RouterProvider } from 'react-router/dom'
 
 import { AntdProvider, AppStoreProvider } from './providers'
-import { AuthInitializationBoundary } from './providers/AuthInitializationBoundary'
 import { appRouter } from './router'
 
 import { AuthProvider } from '@/features/auth'
@@ -12,9 +11,7 @@ export function App() {
     <AuthProvider>
       <AppStoreProvider>
         <AntdProvider>
-          <AuthInitializationBoundary>
-            <RouterProvider router={appRouter} />
-          </AuthInitializationBoundary>
+          <RouterProvider router={appRouter} />
         </AntdProvider>
       </AppStoreProvider>
     </AuthProvider>

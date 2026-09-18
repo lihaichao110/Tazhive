@@ -15,7 +15,12 @@ import type { DeepSeekThinkingConfig } from '../model/chatMode'
 import type { ChatQuote, ChatRole } from '../model/types'
 
 import type { DeepSeekConfig } from '@/shared/config'
-import { getAccessToken, HttpError, reportAccessTokenRejected } from '@/shared/api'
+import {
+  getAccessToken,
+  HttpError,
+  recoverFromAccessTokenRejection,
+  reportAccessTokenRejected,
+} from '@/shared/api'
 
 export interface DeepSeekMessage extends XModelMessage {
   readonly role: ChatRole
@@ -114,6 +119,18 @@ function buildChatUrl(threadId: string): string {
   return `${CHAT_ENDPOINT}/${encodeURIComponent(threadId)}`
 }
 
+// 按传入令牌注入鉴权头并发送一次聊天请求；令牌在每次发送前确定。
+async function sendAuthorizedChatRequest(
+  requestUrl: RequestInfo | URL,
+  options: XRequestOptions<DeepSeekRequestParams, SSEOutput>,
+  accessToken: string | null,
+): Promise<Response> {
+  const headers = new Headers(options.headers)
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+  else headers.delete('Authorization')
+  return globalThis.fetch(requestUrl, { ...options, headers })
+}
+
 // 聊天流绕过 Axios 客户端，因此在 fetch 边界动态注入令牌并同步处理会话失效。
 // XRequest 的地址在创建时固定，而线程 ID 随每次请求参数传入；
 // 必须在这里用当前线程重写地址，否则请求会落到创建时写死的旧线程上（404）。
@@ -121,20 +138,28 @@ async function fetchChatStream(
   input: RequestInfo | URL,
   options: XRequestOptions<DeepSeekRequestParams, SSEOutput>,
 ): Promise<Response> {
-  const accessToken = getAccessToken()
-  const headers = new Headers(options.headers)
-  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
-  else headers.delete('Authorization')
-
   const threadId = options.params?.thread_id
   const requestUrl = threadId ? buildChatUrl(threadId) : input
 
-  const response = await globalThis.fetch(requestUrl, { ...options, headers })
+  let usedToken = getAccessToken()
+  let response = await sendAuthorizedChatRequest(requestUrl, options, usedToken)
+  // SSE 通道与 axios 拦截器一致：先静默刷新并以新令牌原样重发一次。
+  let isRetryAfterRefresh = false
+  if (response.status === 401 && usedToken) {
+    const recoveredToken = await recoverFromAccessTokenRejection(usedToken)
+    if (recoveredToken) {
+      isRetryAfterRefresh = true
+      usedToken = recoveredToken
+      response = await sendAuthorizedChatRequest(requestUrl, options, usedToken)
+    }
+  }
+
   // 已取消的旧请求不得触发登录失效或处理迟到的后端响应。
   options.signal?.throwIfAborted()
   if (response.status === 401) {
-    // 使用本次请求实际携带的令牌，避免延迟响应清除后来建立的新会话。
-    reportAccessTokenRejected(accessToken)
+    // 首次 401 的拒绝上报已由恢复入口完成；此处只兜底重发后仍未通过的情形，
+    // 并使用本次请求实际携带的令牌，避免延迟响应清除后来建立的新会话。
+    if (isRetryAfterRefresh) reportAccessTokenRejected(usedToken)
     throw new HttpError('登录状态已失效，请重新登录', { status: 401 })
   }
   if (!response.ok) throw await readChatHttpError(response)

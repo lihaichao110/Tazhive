@@ -1,11 +1,9 @@
-import { useMemo } from 'react'
 import { BarChart, LineChart, PieChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { use as registerEChartsModules } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 
 import type { ResponseChart as ResponseChartModel } from '../../model/types'
-import { createResponseChartOption } from './chartOptions'
 import { useEChart } from './useEChart'
 import styles from './ResponseChart.module.scss'
 
@@ -25,8 +23,7 @@ interface ResponseChartProps {
 
 // 在正文标记位置渲染一张经过协议校验的响应图表。
 export function ResponseChart({ chart }: ResponseChartProps) {
-  const option = useMemo(() => createResponseChartOption(chart), [chart])
-  const chartRef = useEChart(option)
+  const chartRef = useEChart(chart)
 
   return (
     <figure className={styles.card} data-chart-id={chart.chartId}>
