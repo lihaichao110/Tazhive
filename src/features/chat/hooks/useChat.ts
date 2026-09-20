@@ -43,6 +43,7 @@ function toChatMessage(info: MessageInfo<DeepSeekMessage>): ChatMessage {
       info.message.role === 'assistant'
         ? parseAssistantMessageContent(info.message.content, info.status as ChatMessageStatus)
         : createTextMessageContent(action ? formatCardActionSummary(action) : info.message.content),
+    references: info.message.references ?? [],
     status: info.status as ChatMessageStatus,
     quote: info.message.quote,
   }
@@ -170,7 +171,7 @@ export function useChat() {
       setMessages(
         history.map((item) => ({
           id: item.id,
-          message: { role: item.role, content: item.content },
+          message: { role: item.role, content: item.content, references: item.references },
           status: 'success',
         })),
       )
@@ -186,7 +187,7 @@ export function useChat() {
         history.forEach((item) => {
           const message = {
             id: item.id,
-            message: { role: item.role, content: item.content },
+            message: { role: item.role, content: item.content, references: item.references },
             status: 'success' as const,
           }
           const existingIndex = next.findIndex((entry) => String(entry.id) === item.id)

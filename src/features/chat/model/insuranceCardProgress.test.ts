@@ -30,7 +30,13 @@ function cardOf(
 }
 
 function messageOf(...cards: readonly DynamicCardMessageContent[]): ChatMessage {
-  return { id: `m-${cards.length}`, role: 'assistant', content: [...cards], status: 'success' }
+  return {
+    id: `m-${cards.length}`,
+    role: 'assistant',
+    content: [...cards],
+    references: [],
+    status: 'success',
+  }
 }
 
 describe('isStaleInsuranceFormCard', () => {

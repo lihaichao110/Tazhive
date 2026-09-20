@@ -13,6 +13,16 @@ export type ChatMode = 'fast' | 'deep'
  */
 export type ChatMessageStatus = 'local' | 'loading' | 'updating' | 'success' | 'error' | 'abort'
 
+/** AI 回答引用的外部网页或知识库文档片段。 */
+export interface ChatReference {
+  readonly source_type: 'rag' | 'web'
+  readonly title: string
+  readonly url: string
+  readonly snippet: string
+  readonly document_id: string | null
+  readonly chunk_index: number | null
+}
+
 /** 用户发送新问题时附带的原消息选中文本。 */
 export interface ChatQuote {
   /** 被引用消息的唯一标识。 */
@@ -149,6 +159,8 @@ export interface ChatMessage {
   readonly role: ChatRole
   /** 按原始响应顺序拆分得到的结构化内容块。 */
   readonly content: readonly ChatMessageContent[]
+  /** AI 回答使用的结构化来源；用户消息与无来源回答为空数组。 */
+  readonly references: readonly ChatReference[]
   /** 消息当前的请求或流式接收状态。 */
   readonly status: ChatMessageStatus
   /** 用户消息可选的原文引用信息。 */

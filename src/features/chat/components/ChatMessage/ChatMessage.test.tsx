@@ -21,6 +21,7 @@ describe('ChatMessage', () => {
               id: 'user-2',
               role: 'user',
               content: [{ type: 'text', text: '为什么？' }],
+              references: [],
               quote: { messageId: 'assistant-1', role: 'assistant', text: '被引用的回答' },
               status: 'local',
             }}
@@ -45,6 +46,7 @@ describe('ChatMessage', () => {
             id: 'user-1',
             role: 'user',
             content: [{ type: 'text', text: '普通问题' }],
+            references: [],
             status: 'local',
           }}
         />
@@ -63,6 +65,7 @@ describe('ChatMessage', () => {
             id: 'assistant-1',
             role: 'assistant',
             content: [{ type: 'text', text: '最终回答' }],
+            references: [],
             status: 'success',
           }}
         />
@@ -82,6 +85,7 @@ describe('ChatMessage', () => {
         id: `assistant-${status}`,
         role: 'assistant',
         content: [{ type: 'text', text: '回答' }],
+        references: [],
         status,
       } as const
       const markup = renderToStaticMarkup(
@@ -103,6 +107,7 @@ describe('ChatMessage', () => {
             id: 'assistant-chart-error',
             role: 'assistant',
             content: [{ type: 'chart-error', message: '图表加载失败' }],
+            references: [],
             status: 'success',
           }}
         />
@@ -110,5 +115,34 @@ describe('ChatMessage', () => {
     )
 
     expect(markup).not.toContain('aria-label="复制回答"')
+  })
+
+  it('仅在 AI 回答含来源时于正文后渲染来源入口', () => {
+    const markup = renderToStaticMarkup(
+      <ChatSessionTestProvider>
+        <ChatMessage
+          message={{
+            id: 'assistant-with-source',
+            role: 'assistant',
+            content: [{ type: 'text', text: '带来源回答' }],
+            references: [
+              {
+                source_type: 'web',
+                title: '官方公告',
+                url: 'https://example.com',
+                snippet: '公告摘要',
+                document_id: null,
+                chunk_index: null,
+              },
+            ],
+            status: 'success',
+          }}
+        />
+      </ChatSessionTestProvider>,
+    )
+
+    expect(markup).toContain('来源 1')
+    expect(markup.indexOf('带来源回答')).toBeLessThan(markup.indexOf('来源 1'))
+    expect(markup.indexOf('来源 1')).toBeLessThan(markup.indexOf('复制回答'))
   })
 })

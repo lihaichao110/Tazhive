@@ -99,6 +99,16 @@ describe('DeepSeek SSE 流', () => {
         role: 'user',
         content: '请展开说明',
         quote: { messageId: 'assistant-1', role: 'assistant', text: '关键结论' },
+        references: [
+          {
+            source_type: 'web',
+            title: '旧来源',
+            url: 'https://example.com',
+            snippet: '不会回传',
+            document_id: null,
+            chunk_index: null,
+          },
+        ],
       },
     ])
 
@@ -111,6 +121,7 @@ describe('DeepSeek SSE 流', () => {
       },
     ])
     expect(params.messages?.[0]).not.toHaveProperty('quote')
+    expect(params.messages?.[0]).not.toHaveProperty('references')
   })
 
   it('卡片动作使用请求正文而不是界面摘要', () => {

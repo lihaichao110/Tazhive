@@ -130,6 +130,7 @@ describe('HomePage', () => {
         role: 'assistant',
         status,
         content: [{ type: 'text', text: '正在返回的正文' }],
+        references: [],
       },
     ]
     act(() => {
@@ -152,8 +153,9 @@ describe('HomePage', () => {
         role: 'assistant',
         status: 'success',
         content: [{ type: 'text', text: '历史回答' }],
+        references: [],
       },
-      { id: 'reply', role: 'assistant', status: 'loading', content: [] },
+      { id: 'reply', role: 'assistant', status: 'loading', content: [], references: [] },
     ]
     act(() => {
       root.render(

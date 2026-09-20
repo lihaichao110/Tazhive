@@ -8,6 +8,7 @@ import { useChatSession } from '../../providers/useChatSession'
 import { AssistantCopyButton } from '../AssistantCopyButton/AssistantCopyButton'
 import { ChatMessageContent } from '../ChatMessageContent/ChatMessageContent'
 import { MessageSelectionActions } from '../MessageSelectionActions/MessageSelectionActions'
+import { MessageSources } from '../MessageSources/MessageSources'
 import { QuoteCard } from '../QuoteCard/QuoteCard'
 import styles from './ChatMessage.module.scss'
 
@@ -80,11 +81,14 @@ export function ChatMessage({ message }: ChatMessageProps) {
             placement="start"
             variant="borderless"
             content={
-              <ChatMessageContent
-                content={message.content}
-                role={message.role}
-                status={message.status}
-              />
+              <div className={styles.assistantContent}>
+                <ChatMessageContent
+                  content={message.content}
+                  role={message.role}
+                  status={message.status}
+                />
+                <MessageSources references={message.references} />
+              </div>
             }
             footer={assistantFooter}
             footerPlacement="outer-start"

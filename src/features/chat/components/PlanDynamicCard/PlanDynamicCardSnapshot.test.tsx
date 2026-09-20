@@ -87,11 +87,12 @@ describe('PlanDynamicCard 提交快照与陈旧锁', () => {
 
     // 服务端按步骤追加新卡片消息，投保人卡陈旧化触发运行时命令重置。
     render([
-      { id: 'm-1', role: 'assistant', content: [applicant], status: 'success' },
+      { id: 'm-1', role: 'assistant', content: [applicant], references: [], status: 'success' },
       {
         id: 'm-2',
         role: 'assistant',
         content: [insuranceStepCard('ins-insured', 2)],
+        references: [],
         status: 'success',
       },
     ])
@@ -141,8 +142,8 @@ describe('PlanDynamicCard 提交快照与陈旧锁', () => {
     const applicant = insuranceStepCard('ins-applicant', 1)
     const insured = insuranceStepCard('ins-insured', 2)
     const messages: readonly ChatMessage[] = [
-      { id: 'm-1', role: 'assistant', content: [applicant], status: 'success' },
-      { id: 'm-2', role: 'assistant', content: [insured], status: 'success' },
+      { id: 'm-1', role: 'assistant', content: [applicant], references: [], status: 'success' },
+      { id: 'm-2', role: 'assistant', content: [insured], references: [], status: 'success' },
     ]
     const submitInsuranceAction = vi.fn().mockResolvedValue({ outcome: 'advanced' })
     act(() =>
@@ -174,9 +175,10 @@ describe('PlanDynamicCard 提交快照与陈旧锁', () => {
         id: 'm-1',
         role: 'assistant',
         content: [insuranceStepCard('ins-applicant', 1)],
+        references: [],
         status: 'success',
       },
-      { id: 'm-2', role: 'assistant', content: [insured], status: 'success' },
+      { id: 'm-2', role: 'assistant', content: [insured], references: [], status: 'success' },
     ]
     act(() =>
       root.render(

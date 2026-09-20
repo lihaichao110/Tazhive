@@ -52,6 +52,7 @@ describe('请求最终状态与消息去重', () => {
           thread_id: 'thread',
           role: 'user',
           content: '历史提问',
+          references: [],
           created_at: '2026-09-11T10:00:00Z',
         },
         {
@@ -59,6 +60,16 @@ describe('请求最终状态与消息去重', () => {
           thread_id: 'thread',
           role: 'assistant',
           content: '历史回答',
+          references: [
+            {
+              source_type: 'web',
+              title: '历史来源',
+              url: 'https://example.com/history',
+              snippet: '历史摘要',
+              document_id: null,
+              chunk_index: null,
+            },
+          ],
           created_at: '2026-09-11T10:00:01Z',
         },
       ])
@@ -69,6 +80,7 @@ describe('请求最终状态与消息去重', () => {
         id: 'history-user',
         role: 'user',
         content: [{ type: 'text', text: '历史提问' }],
+        references: [],
         status: 'success',
         quote: undefined,
       },
@@ -76,6 +88,7 @@ describe('请求最终状态与消息去重', () => {
         id: 'history-assistant',
         role: 'assistant',
         content: [{ type: 'text', text: '历史回答' }],
+        references: [expect.objectContaining({ title: '历史来源' })],
         status: 'success',
         quote: undefined,
       },
@@ -93,15 +106,32 @@ describe('请求最终状态与消息去重', () => {
       id: 'insurance-flow-1',
       thread_id: 'thread',
       role: 'assistant' as const,
+      references: [
+        {
+          source_type: 'rag' as const,
+          title: '初始来源',
+          url: '',
+          snippet: '',
+          document_id: 'doc-1',
+          chunk_index: 1,
+        },
+      ],
       created_at: '2026-09-11T10:00:00Z',
     }
     await act(async () => {
       chat.replaceHistory([{ ...baseMessage, content: '投保人资料' }])
-      chat.upsertHistoryMessages([{ ...baseMessage, content: '被保险人资料' }])
+      chat.upsertHistoryMessages([
+        {
+          ...baseMessage,
+          content: '被保险人资料',
+          references: [{ ...baseMessage.references[0], title: '更新来源' }],
+        },
+      ])
     })
 
     expect(chat.messages).toHaveLength(1)
     expect(chat.messages[0]?.content).toEqual([{ type: 'text', text: '被保险人资料' }])
+    expect(chat.messages[0]?.references[0]?.title).toBe('更新来源')
   })
 
   function deferredResponse() {

@@ -12,7 +12,8 @@ import { readChatHttpError } from './readChatHttpError'
 
 import { serializeQuotedPrompt } from '../lib/quoteMessage'
 import type { DeepSeekThinkingConfig } from '../model/chatMode'
-import type { ChatQuote, ChatRole } from '../model/types'
+import { parseChatReferences } from '../model/chatReference'
+import type { ChatQuote, ChatReference, ChatRole } from '../model/types'
 
 import type { DeepSeekConfig } from '@/shared/config'
 import {
@@ -26,6 +27,7 @@ export interface DeepSeekMessage extends XModelMessage {
   readonly role: ChatRole
   readonly content: string
   readonly quote?: ChatQuote
+  readonly references?: readonly ChatReference[]
   /** 与界面展示正文不同时，使用该字段作为实际发送给模型的正文。 */
   readonly requestContent?: string
 }
@@ -108,7 +110,34 @@ class QuotedDeepSeekChatProvider extends DeepSeekChatProvider<
     // 从而触发失败气泡与重试按钮，而不是展示一条"成功的"空消息。
     const upstreamMessage = readUpstreamErrorMessage(info.chunk, info.responseHeaders)
     if (upstreamMessage) throw new ChatUpstreamError(upstreamMessage)
-    return super.transformMessage(info)
+    const transformedMessage = super.transformMessage(info)
+    // SDK 基类只合并标准字段，需显式把上一帧的来源元数据带入当前消息。
+    const message = info.originMessage?.references
+      ? { ...transformedMessage, references: info.originMessage.references }
+      : transformedMessage
+    const data = info.chunk?.data
+    if (typeof data !== 'string') return message
+    const trimmed = data.trim()
+    if (trimmed === '' || trimmed === '[DONE]') return message
+
+    let payload: unknown
+    try {
+      payload = JSON.parse(trimmed)
+    } catch {
+      return message
+    }
+    if (typeof payload !== 'object' || payload === null || !('references' in payload))
+      return message
+    const rawReferences = (payload as Record<string, unknown>).references
+    const references = parseChatReferences(rawReferences)
+    // 明确的空数组代表无来源；非空数组若全部非法则忽略，避免破坏前一帧的有效来源。
+    if (
+      references === null ||
+      (Array.isArray(rawReferences) && rawReferences.length > 0 && references.length === 0)
+    ) {
+      return message
+    }
+    return { ...message, references }
   }
 }
 

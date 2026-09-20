@@ -146,8 +146,14 @@ describe('PlanDynamicCard 真实 XCard 投保推进链路', () => {
 
     // 服务端按步骤追加被保人卡片消息，投保人卡陈旧化并重放服务端空种子。
     render(applicant, [
-      { id: 'm-1', role: 'assistant', content: [applicant], status: 'success' },
-      { id: 'm-2', role: 'assistant', content: [insuredCard('ins-2')], status: 'success' },
+      { id: 'm-1', role: 'assistant', content: [applicant], references: [], status: 'success' },
+      {
+        id: 'm-2',
+        role: 'assistant',
+        content: [insuredCard('ins-2')],
+        references: [],
+        status: 'success',
+      },
     ])
 
     // 回归：陈旧重放后表单数据不得被空种子清掉，字段与按钮全部禁用。

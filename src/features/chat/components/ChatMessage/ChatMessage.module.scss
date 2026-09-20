@@ -40,6 +40,11 @@
   max-width: 100%;
 }
 
+.assistantContent {
+  width: 100%;
+  min-width: 0;
+}
+
 .contentLoading {
   margin: 0;
   color: var(--color-text-muted);

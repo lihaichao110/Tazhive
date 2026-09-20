@@ -88,14 +88,14 @@ export function ChatSidebar({ onGoToLogin }: ChatSidebarProps) {
           新对话
         </button>
         {errorMessage ? (
-          <p className={styles.listStatus} role="alert">
-            {errorMessage}
+          <div className={styles.listStatus} role="alert">
+            <p className={styles.listStatusText}>{errorMessage}</p>
             {isUnauthorized ? (
               <button type="button" className={styles.goLoginButton} onClick={handleGoToLogin}>
                 去登录
               </button>
             ) : null}
-          </p>
+          </div>
         ) : isLoading ? (
           <PageLoading label="正在加载历史对话…" variant="inline" />
         ) : conversations.length === 0 ? (
