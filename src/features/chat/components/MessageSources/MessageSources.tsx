@@ -1,27 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Sources, type SourcesProps } from '@ant-design/x'
-import { Alert, Button, Drawer, Spin } from 'antd'
-import { FileText, Globe2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Alert, Button, Drawer, Popover, Spin } from 'antd'
 
 import { requestDocumentChunk, type DocumentChunkRead } from '../../api/getDocumentChunk'
 import type { ChatReference } from '../../model/types'
+import { SourcePopoverContent } from './SourcePopoverContent'
 import styles from './MessageSources.module.scss'
 
 interface MessageSourcesProps {
   readonly references: readonly ChatReference[]
-}
-
-interface SourceEntry {
-  readonly key: string
-  readonly reference: ChatReference
-}
-
-type SourcesItem = NonNullable<SourcesProps['items']>[number]
-
-function sourceKey(reference: ChatReference, index: number): string {
-  return reference.source_type === 'rag'
-    ? `rag:${reference.document_id}:${reference.chunk_index}:${index}`
-    : `web:${reference.url}:${index}`
 }
 
 function errorMessage(error: unknown): string {
@@ -30,76 +16,39 @@ function errorMessage(error: unknown): string {
     : '文档片段加载失败，请稍后重试。'
 }
 
-/** 展示回答来源，并在受控 Drawer 中按需加载受鉴权保护的 RAG 文档片段。 */
+/** 展示回答来源，并在受控 Drawer 中按需加载受鉴权保护的内部文档片段。 */
 export function MessageSources({ references }: MessageSourcesProps) {
-  const [activeEntry, setActiveEntry] = useState<SourceEntry | null>(null)
+  const [sourcesOpen, setSourcesOpen] = useState(false)
+  const [activeReference, setActiveReference] = useState<ChatReference | null>(null)
   const [chunk, setChunk] = useState<DocumentChunkRead | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [retryVersion, setRetryVersion] = useState(0)
 
-  const entries = useMemo(
-    () => references.map((reference, index) => ({ key: sourceKey(reference, index), reference })),
-    [references],
-  )
-  const entryByKey = useMemo(() => new Map(entries.map((entry) => [entry.key, entry])), [entries])
-
-  const activateEntry = useCallback((entry: SourceEntry): void => {
-    if (entry.reference.source_type === 'web') {
-      window.open(entry.reference.url, '_blank', 'noopener,noreferrer')
+  const activateReference = useCallback((reference: ChatReference): void => {
+    // 先关闭受控浮层，再执行来源动作，避免 Popover 与 Drawer 同时停留在页面上。
+    setSourcesOpen(false)
+    if (reference.source_type === 'web') {
+      window.open(reference.url, '_blank', 'noopener,noreferrer')
       return
     }
     setChunk(null)
     setError(null)
-    setActiveEntry(entry)
+    setActiveReference(reference)
   }, [])
 
-  const items = useMemo<SourcesItem[]>(
-    () =>
-      entries.map((entry) => ({
-        key: entry.key,
-        title: (
-          <button
-            type="button"
-            className={styles.sourceButton}
-            aria-label={`打开来源：${entry.reference.title}`}
-            onClick={(event) => {
-              event.stopPropagation()
-              activateEntry(entry)
-            }}
-          >
-            {entry.reference.title}
-          </button>
-        ),
-        description: entry.reference.snippet,
-        icon:
-          entry.reference.source_type === 'rag' ? (
-            <FileText size={15} aria-hidden="true" />
-          ) : (
-            <Globe2 size={15} aria-hidden="true" />
-          ),
-        url: entry.reference.source_type === 'web' ? entry.reference.url : undefined,
-      })),
-    [activateEntry, entries],
-  )
-
-  const handleSourceClick = useCallback(
-    (item: SourcesItem): void => {
-      const entry = entryByKey.get(String(item.key))
-      if (entry?.reference.source_type === 'rag') activateEntry(entry)
-    },
-    [activateEntry, entryByKey],
-  )
-
   useEffect(() => {
-    const reference = activeEntry?.reference
-    if (!reference || reference.source_type !== 'rag') return
+    if (!activeReference || activeReference.source_type === 'web') return
     const controller = new AbortController()
     setLoading(true)
     setChunk(null)
     setError(null)
-    if (reference.document_id === null || reference.chunk_index === null) return
-    void requestDocumentChunk(reference.document_id, reference.chunk_index, controller.signal)
+    if (activeReference.document_id === null || activeReference.chunk_index === null) return
+    void requestDocumentChunk(
+      activeReference.document_id,
+      activeReference.chunk_index,
+      controller.signal,
+    )
       .then((result) => {
         if (!controller.signal.aborted) setChunk(result)
       })
@@ -110,10 +59,10 @@ export function MessageSources({ references }: MessageSourcesProps) {
         if (!controller.signal.aborted) setLoading(false)
       })
     return () => controller.abort()
-  }, [activeEntry, retryVersion])
+  }, [activeReference, retryVersion])
 
   const closeDrawer = useCallback((): void => {
-    setActiveEntry(null)
+    setActiveReference(null)
     setChunk(null)
     setError(null)
   }, [])
@@ -122,15 +71,28 @@ export function MessageSources({ references }: MessageSourcesProps) {
 
   return (
     <div className={styles.root} aria-label="回答来源">
-      <Sources
-        inline
-        title={`引用来源数量 ${references.length}条`}
-        items={items}
-        onClick={handleSourceClick}
-      />
+      <Popover
+        open={sourcesOpen}
+        onOpenChange={setSourcesOpen}
+        // 仅保留点击触发，避免鼠标移入先打开、同一次点击又立即关闭的事件竞争。
+        trigger="click"
+        placement="top"
+        destroyOnHidden
+        styles={{ container: { width: 300 } }}
+        content={<SourcePopoverContent references={references} onSelect={activateReference} />}
+      >
+        <button
+          type="button"
+          className={styles.sourceTrigger}
+          aria-label={`查看 ${references.length} 条引用来源`}
+          aria-expanded={sourcesOpen}
+        >
+          引用来源数量 {references.length}条
+        </button>
+      </Popover>
       <Drawer
-        open={activeEntry !== null}
-        title={chunk?.filename ?? activeEntry?.reference.title ?? '文档来源'}
+        open={activeReference !== null}
+        title={chunk?.filename ?? activeReference?.title ?? '文档来源'}
         aria-label="文档来源详情"
         onClose={closeDrawer}
       >

@@ -11,14 +11,21 @@ import type { DropdownProps, MenuProps } from 'antd'
 import { ChatSessionTestProvider } from '../../providers/chatSessionTestUtils'
 import { ChatComposer } from './ChatComposer'
 
-const { clearSenderMock, dropdownCalls, getSenderValueMock, navigateMock, senderCalls } =
-  vi.hoisted(() => ({
-    clearSenderMock: vi.fn(),
-    dropdownCalls: [] as DropdownProps[],
-    getSenderValueMock: vi.fn(),
-    navigateMock: vi.fn(),
-    senderCalls: [] as SenderProps[],
-  }))
+const {
+  blurSenderMock,
+  clearSenderMock,
+  dropdownCalls,
+  getSenderValueMock,
+  navigateMock,
+  senderCalls,
+} = vi.hoisted(() => ({
+  blurSenderMock: vi.fn(),
+  clearSenderMock: vi.fn(),
+  dropdownCalls: [] as DropdownProps[],
+  getSenderValueMock: vi.fn(),
+  navigateMock: vi.fn(),
+  senderCalls: [] as SenderProps[],
+}))
 
 vi.mock('react-router', () => ({ useNavigate: () => navigateMock }))
 
@@ -37,6 +44,7 @@ vi.mock('@ant-design/x', async () => {
       ref,
       () =>
         ({
+          blur: blurSenderMock,
           clear: clearSenderMock,
           getValue: getSenderValueMock,
         }) as unknown as SenderRef,
@@ -107,6 +115,7 @@ describe('ChatComposer 附件与更多菜单', () => {
     root = createRoot(host)
     dropdownCalls.length = 0
     senderCalls.length = 0
+    blurSenderMock.mockReset()
     clearSenderMock.mockReset()
     getSenderValueMock.mockReset()
     getSenderValueMock.mockReturnValue({ value: '', slotConfig: [], skill: undefined })
@@ -116,6 +125,7 @@ describe('ChatComposer 附件与更多菜单', () => {
   afterEach(() => {
     act(() => root.unmount())
     host.remove()
+    vi.unstubAllGlobals()
   })
 
   it('通过附件菜单打开单文件选择器并限制为常用文档和图片', () => {
@@ -201,8 +211,12 @@ describe('ChatComposer 附件与更多菜单', () => {
     expect(host.querySelector('[role="alert"]')?.textContent).toContain('暂时无法随消息发送')
   })
 
-  it('无附件时保持原有文本发送和清空行为', async () => {
+  it('移动触屏设备发送成功后收起键盘并保持原有清空行为', async () => {
     const sendMessage = vi.fn(async () => true)
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: true })),
+    )
     renderComposer({ sendMessage })
 
     await act(async () => {
@@ -210,11 +224,32 @@ describe('ChatComposer 附件与更多菜单', () => {
     })
 
     expect(sendMessage).toHaveBeenCalledWith('你好')
+    expect(blurSenderMock).toHaveBeenCalledOnce()
     expect(clearSenderMock).toHaveBeenCalledOnce()
   })
 
-  it('发送被拒绝时（如建线程失败）保留草稿不清空输入', async () => {
+  it('桌面设备发送成功后保持输入焦点', async () => {
+    const sendMessage = vi.fn(async () => true)
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: false })),
+    )
+    renderComposer({ sendMessage })
+
+    await act(async () => {
+      getLatestSender().onSubmit?.('你好', [])
+    })
+
+    expect(blurSenderMock).not.toHaveBeenCalled()
+    expect(clearSenderMock).toHaveBeenCalledOnce()
+  })
+
+  it('移动端发送被拒绝时（如建线程失败）保留键盘与草稿', async () => {
     const sendMessage = vi.fn(async () => false)
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: true })),
+    )
     renderComposer({ sendMessage })
 
     await act(async () => {
@@ -222,6 +257,7 @@ describe('ChatComposer 附件与更多菜单', () => {
     })
 
     expect(sendMessage).toHaveBeenCalledWith('你好')
+    expect(blurSenderMock).not.toHaveBeenCalled()
     expect(clearSenderMock).not.toHaveBeenCalled()
   })
 

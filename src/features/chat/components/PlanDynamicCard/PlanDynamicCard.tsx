@@ -40,6 +40,8 @@ import {
 import './planCatalog'
 import styles from './PlanDynamicCard.module.scss'
 
+import { createUuid } from '@/shared/lib'
+
 interface PlanDynamicCardProps {
   readonly card: DynamicCardMessageContent
 }
@@ -80,6 +82,7 @@ export function PlanDynamicCard({ card }: PlanDynamicCardProps) {
     withStaleCardLock(card.commands, card.surfaceId, isStaleCard),
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
   const actionInFlightRef = useRef(false)
   const insuranceEventIdRef = useRef<string | null>(null)
   // 已提交快照：提交成功后服务端命令重置会以空种子清空表单，靠快照在重放后回填。
@@ -120,6 +123,57 @@ export function PlanDynamicCard({ card }: PlanDynamicCardProps) {
     setRuntimeCommands((current) => [...current, ...commands])
   }
 
+  // 在同一异常边界内完成事件 ID 创建与请求，确保 WebView 的同步兼容异常也能解锁并提示。
+  const executeInsuranceAction = async (payload: ActionPayload): Promise<void> => {
+    const normalizedContext = normalizeInsuranceActionContext(payload.context)
+    const form = normalizedContext.form
+    const formSnapshot =
+      form && typeof form === 'object' && !Array.isArray(form)
+        ? { ...(form as Readonly<Record<string, unknown>>) }
+        : null
+    const restoreForm = formSnapshot
+      ? [{ path: '/form', value: formSnapshot } satisfies DataModelUpdate]
+      : []
+    actionInFlightRef.current = true
+    setIsSubmitting(true)
+    setActionError(null)
+
+    try {
+      insuranceEventIdRef.current ??= createUuid()
+      updateDataModel([...restoreForm, { path: '/errors', value: {} }])
+      await submitInsuranceAction({
+        ...(payload as InsuranceActionPayload),
+        context: normalizedContext,
+        eventId: insuranceEventIdRef.current,
+      })
+      insuranceEventIdRef.current = null
+      // 成功后保留 /form 已填数据供客户回看，字段禁用由 /ui/submitted 承担；
+      // 快照同步落入 ref，运行时命令被服务端消息重置后由同步 effect 重新回填。
+      submittedSnapshotRef.current = {
+        form: formSnapshot,
+        step: readInsuranceCardStep(card.commands),
+      }
+      updateDataModel([
+        { path: '/errors', value: {} },
+        { path: '/ui/submitted', value: true },
+      ])
+    } catch (error: unknown) {
+      const fieldErrors = error instanceof InsuranceActionError ? error.fieldErrors : {}
+      const message = error instanceof Error ? error.message : '提交失败，请稍后重试'
+      updateDataModel([
+        ...restoreForm,
+        {
+          path: '/errors',
+          value: Object.keys(fieldErrors).length ? fieldErrors : { form: message },
+        },
+      ])
+      setActionError(message)
+    } finally {
+      actionInFlightRef.current = false
+      setIsSubmitting(false)
+    }
+  }
+
   // 预核保继续走聊天；正式投保及表单动作走确定性接口并原地显示校验结果。
   const handleAction = (payload: ActionPayload): void => {
     if (payload.surfaceId !== card.surfaceId || actionInFlightRef.current) return
@@ -134,52 +188,7 @@ export function PlanDynamicCard({ card }: PlanDynamicCardProps) {
       return
     }
     if (!ALLOWED_INSURANCE_ACTIONS.has(payload.name)) return
-    const normalizedContext = normalizeInsuranceActionContext(payload.context)
-    const form = normalizedContext.form
-    const formSnapshot =
-      form && typeof form === 'object' && !Array.isArray(form)
-        ? { ...(form as Readonly<Record<string, unknown>>) }
-        : null
-    const restoreForm = formSnapshot
-      ? [{ path: '/form', value: formSnapshot } satisfies DataModelUpdate]
-      : []
-    actionInFlightRef.current = true
-    setIsSubmitting(true)
-    insuranceEventIdRef.current ??= crypto.randomUUID()
-    updateDataModel([...restoreForm, { path: '/errors', value: {} }])
-    void submitInsuranceAction({
-      ...(payload as InsuranceActionPayload),
-      context: normalizedContext,
-      eventId: insuranceEventIdRef.current,
-    })
-      .then(() => {
-        insuranceEventIdRef.current = null
-        // 成功后保留 /form 已填数据供客户回看，字段禁用由 /ui/submitted 承担；
-        // 快照同步落入 ref，运行时命令被服务端消息重置后由同步 effect 重新回填。
-        submittedSnapshotRef.current = {
-          form: formSnapshot,
-          step: readInsuranceCardStep(card.commands),
-        }
-        updateDataModel([
-          { path: '/errors', value: {} },
-          { path: '/ui/submitted', value: true },
-        ])
-      })
-      .catch((error: unknown) => {
-        const fieldErrors = error instanceof InsuranceActionError ? error.fieldErrors : {}
-        const message = error instanceof Error ? error.message : '提交失败，请稍后重试'
-        updateDataModel([
-          ...restoreForm,
-          {
-            path: '/errors',
-            value: Object.keys(fieldErrors).length ? fieldErrors : { form: message },
-          },
-        ])
-      })
-      .finally(() => {
-        actionInFlightRef.current = false
-        setIsSubmitting(false)
-      })
+    void executeInsuranceAction(payload)
   }
 
   return (
@@ -189,6 +198,11 @@ export function PlanDynamicCard({ card }: PlanDynamicCardProps) {
           <XCard.Card id={card.surfaceId} />
         </InsuranceSubmissionProvider>
       </XCard.Box>
+      {actionError ? (
+        <p className={styles.actionError} role="alert">
+          {actionError}
+        </p>
+      ) : null}
     </div>
   )
 }

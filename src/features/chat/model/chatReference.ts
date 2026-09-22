@@ -4,9 +4,9 @@ import type { ChatReference } from './types'
 export function parseChatReference(value: unknown): ChatReference | null {
   if (typeof value !== 'object' || value === null) return null
   const reference = value as Record<string, unknown>
-  const isRag = reference.source_type === 'rag'
-  const isWeb = reference.source_type === 'web'
-  if (!isRag && !isWeb) return null
+  const sourceType = reference.source_type
+  const isInternalDocument = sourceType === 'rag' || sourceType === 'wiki'
+  if (!isInternalDocument && sourceType !== 'web') return null
   if (
     typeof reference.title !== 'string' ||
     typeof reference.url !== 'string' ||
@@ -23,12 +23,15 @@ export function parseChatReference(value: unknown): ChatReference | null {
   ) {
     return null
   }
-  if (isRag && (typeof reference.document_id !== 'string' || reference.chunk_index === null)) {
+  if (
+    isInternalDocument &&
+    (typeof reference.document_id !== 'string' || reference.chunk_index === null)
+  ) {
     return null
   }
 
   return {
-    source_type: isRag ? 'rag' : 'web',
+    source_type: sourceType,
     title: reference.title,
     url: reference.url,
     snippet: reference.snippet,

@@ -35,6 +35,14 @@ describe('DeepSeek 回答来源', () => {
           choices: [{ delta: {}, finish_reason: 'stop' }],
           references: [
             {
+              source_type: 'wiki',
+              title: '客服知识库',
+              url: '/api/v1/documents/wiki-1/chunks/0',
+              snippet: '银行客服电话摘要',
+              document_id: 'wiki-1',
+              chunk_index: 0,
+            },
+            {
               source_type: 'web',
               title: '官方公告',
               url: 'https://example.com/notice',
@@ -59,6 +67,7 @@ describe('DeepSeek 回答来源', () => {
 
     expect(done.content).toBe('你好')
     expect(done.references).toEqual([
+      expect.objectContaining({ source_type: 'wiki', title: '客服知识库' }),
       expect.objectContaining({ source_type: 'web', title: '官方公告' }),
     ])
   })

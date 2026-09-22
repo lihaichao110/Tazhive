@@ -25,6 +25,14 @@ describe('requestListThreadMessages', () => {
         content: '你好，有什么可以帮你？',
         references: [
           {
+            source_type: 'wiki',
+            title: '客服知识库',
+            url: '/api/v1/documents/wiki-1/chunks/0',
+            snippet: '银行客服电话摘要',
+            document_id: 'wiki-1',
+            chunk_index: 0,
+          },
+          {
             source_type: 'rag',
             title: '员工手册',
             url: '',
@@ -44,6 +52,14 @@ describe('requestListThreadMessages', () => {
       {
         ...messages[1],
         references: [
+          {
+            source_type: 'wiki',
+            title: '客服知识库',
+            url: '/api/v1/documents/wiki-1/chunks/0',
+            snippet: '银行客服电话摘要',
+            document_id: 'wiki-1',
+            chunk_index: 0,
+          },
           {
             source_type: 'rag',
             title: '员工手册',

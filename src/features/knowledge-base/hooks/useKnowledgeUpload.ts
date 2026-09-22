@@ -4,10 +4,12 @@ import { uploadKnowledgeFile } from '../api/uploadKnowledgeFile'
 import { validateKnowledgeFiles } from '../model/fileValidation'
 import type { FileRejection, KnowledgeUploadItem } from '../model/types'
 
+import { createUuid } from '@/shared/lib'
+
 const MAX_CONCURRENT_UPLOADS = 3
 
 function createUploadId(): string {
-  return crypto.randomUUID()
+  return createUuid()
 }
 
 export interface KnowledgeUploadController {

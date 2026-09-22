@@ -39,6 +39,11 @@ function isAttachmentSlot(config: SlotConfigType): boolean {
   return config.key === ATTACHMENT_SLOT_KEY
 }
 
+// 粗指针设备通常由触屏操作，发送成功后应释放输入焦点以收起软键盘。
+function isMobileLikeDevice(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches
+}
+
 // 底部工具行：左侧为自定义工具按钮，右侧为 Sender 默认的语音与发送按钮。
 function ComposerFooter({
   actionNode,
@@ -195,6 +200,7 @@ export function ChatComposer() {
       // 发送可能先经历首条消息建线程的异步等待；被拒绝时保留草稿，便于用户修复问题后重新发送。
       void Promise.resolve(sendMessage(text)).then((accepted) => {
         if (!accepted) return
+        if (isMobileLikeDevice()) senderRef.current?.blur()
         senderRef.current?.clear()
         setValue('')
         setEditorSlots([])

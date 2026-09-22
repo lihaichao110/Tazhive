@@ -13,9 +13,9 @@ export type ChatMode = 'fast' | 'deep'
  */
 export type ChatMessageStatus = 'local' | 'loading' | 'updating' | 'success' | 'error' | 'abort'
 
-/** AI 回答引用的外部网页或知识库文档片段。 */
+/** AI 回答引用的外部网页、知识库文档或 Wiki 文档片段。 */
 export interface ChatReference {
-  readonly source_type: 'rag' | 'web'
+  readonly source_type: 'rag' | 'wiki' | 'web'
   readonly title: string
   readonly url: string
   readonly snippet: string

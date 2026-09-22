@@ -2,6 +2,7 @@ import type { ThreadMessageRead } from './listThreadMessages'
 import type { InsuranceActionPayload } from '../model/types'
 
 import { createHttpClient, HttpError } from '@/shared/api'
+import { createUuid } from '@/shared/lib'
 
 export interface InsuranceActionResponse {
   readonly outcome: 'advanced' | 'completed' | 'duplicate'
@@ -61,7 +62,7 @@ export async function requestInsuranceAction(
   const applicationId = context.application_id
   const expectedVersion = context.expected_version
   const body = {
-    event_id: payload.eventId ?? crypto.randomUUID(),
+    event_id: payload.eventId ?? createUuid(),
     name: payload.name,
     source_surface_id: payload.surfaceId,
     application_id: typeof applicationId === 'string' ? applicationId : undefined,

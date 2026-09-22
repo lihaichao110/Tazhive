@@ -1,3 +1,5 @@
+import { createUuid } from '@/shared/lib'
+
 const STORAGE_PREFIX = 'tazhive:mermaid-preview:'
 
 interface MermaidPreviewRecord {
@@ -5,7 +7,7 @@ interface MermaidPreviewRecord {
 }
 
 function createPreviewId(): string {
-  return crypto.randomUUID()
+  return createUuid()
 }
 
 function getStorageKey(previewId: string): string {

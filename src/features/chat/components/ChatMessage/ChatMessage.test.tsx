@@ -141,8 +141,9 @@ describe('ChatMessage', () => {
       </ChatSessionTestProvider>,
     )
 
-    expect(markup).toContain('来源 1')
-    expect(markup.indexOf('带来源回答')).toBeLessThan(markup.indexOf('来源 1'))
-    expect(markup.indexOf('来源 1')).toBeLessThan(markup.indexOf('复制回答'))
+    const sourcesTitle = '引用来源数量 1条'
+    expect(markup).toContain(sourcesTitle)
+    expect(markup.indexOf('带来源回答')).toBeLessThan(markup.indexOf(sourcesTitle))
+    expect(markup.indexOf(sourcesTitle)).toBeLessThan(markup.indexOf('复制回答'))
   })
 })

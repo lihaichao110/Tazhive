@@ -37,6 +37,7 @@ describe('requestInsuranceAction', () => {
     expect(post).toHaveBeenCalledWith(
       '/api/v1/threads/thread%2F1/insurance/actions',
       expect.objectContaining({
+        event_id: expect.any(String),
         name: 'applicant_submit',
         source_surface_id: 'surface-1',
         application_id: 'app',

@@ -165,8 +165,11 @@ describe('PlanDynamicCard', () => {
     expect(readLastDataModelValue('/ui/submitted')).not.toBe(true)
   })
 
-  it('普通提交异常仅写入表单级错误', async () => {
-    const submitInsuranceAction = vi.fn().mockRejectedValue(new Error('服务暂时不可用'))
+  it('普通提交异常展示卡片级错误，并使用同一事件 ID 允许重试', async () => {
+    const submitInsuranceAction = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('服务暂时不可用'))
+      .mockResolvedValueOnce({ outcome: 'advanced' })
     act(() =>
       root.render(
         <ChatSessionTestProvider value={{ submitInsuranceAction }}>
@@ -188,6 +191,22 @@ describe('PlanDynamicCard', () => {
     })
 
     expect(readLastDataModelValue('/errors')).toEqual({ form: '服务暂时不可用' })
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe('服务暂时不可用')
+
+    await act(async () => {
+      boxCalls.at(-1)?.onAction({
+        name: 'applicant_submit',
+        surfaceId: 'plans-1',
+        context: { application_id: 'app-1', expected_version: 1 },
+      })
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(submitInsuranceAction).toHaveBeenCalledTimes(2)
+    expect(submitInsuranceAction.mock.calls[1]?.[0].eventId).toBe(
+      submitInsuranceAction.mock.calls[0]?.[0].eventId,
+    )
     expect(host.querySelector('[role="alert"]')).toBeNull()
   })
 
