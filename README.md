@@ -51,3 +51,5 @@ src/
 - 不通过压缩代码规避文件行数限制。
 
 完整规则见[编码规范](./docs/CODING_STANDARDS.md)，编码代理还必须遵循根目录的 [AGENTS.md](./AGENTS.md)。
+
+生产环境通过 GitHub Actions 部署到静态服务器，首次配置请参阅[部署说明](./docs/DEPLOYMENT.md)。
