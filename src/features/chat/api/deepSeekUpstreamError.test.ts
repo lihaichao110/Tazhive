@@ -4,11 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createDeepSeekProvider, ChatUpstreamError } from './deepSeekProvider'
 
-const PROVIDER_CONFIG = {
-  apiKey: 'test-key',
-  baseUrl: 'https://example.com',
-  modelName: 'deepseek-chat',
-} as const
+const PROVIDER_MODEL_NAME = 'deepseek-chat'
 
 // 覆盖后端在 HTTP 200 载荷（SSE data 或 JSON 体）中携带 error 字段的场景：
 // SDK 基类会静默丢弃该字段并产生空回复，必须在 Provider 层拦截并转为错误。
@@ -18,7 +14,7 @@ describe('上游错误载荷拦截', () => {
   })
 
   it('transformMessage 对 SSE error 载荷抛出 ChatUpstreamError，正常增量不受影响', () => {
-    const provider = createDeepSeekProvider(PROVIDER_CONFIG, {
+    const provider = createDeepSeekProvider(PROVIDER_MODEL_NAME, {
       onError: () => undefined,
       onSuccess: () => undefined,
     })
@@ -55,7 +51,7 @@ describe('上游错误载荷拦截', () => {
   })
 
   it('transformMessage 兼容对象形态的 error 字段', () => {
-    const provider = createDeepSeekProvider(PROVIDER_CONFIG, {
+    const provider = createDeepSeekProvider(PROVIDER_MODEL_NAME, {
       onError: () => undefined,
       onSuccess: () => undefined,
     })
@@ -82,7 +78,7 @@ describe('上游错误载荷拦截', () => {
     )
 
     const error = await new Promise<Error>((resolve) => {
-      const provider = createDeepSeekProvider(PROVIDER_CONFIG, {
+      const provider = createDeepSeekProvider(PROVIDER_MODEL_NAME, {
         onError: resolve,
         onSuccess: () => undefined,
       })
@@ -115,7 +111,7 @@ describe('上游错误载荷拦截', () => {
     )
 
     const error = await new Promise<Error>((resolve) => {
-      const provider = createDeepSeekProvider(PROVIDER_CONFIG, {
+      const provider = createDeepSeekProvider(PROVIDER_MODEL_NAME, {
         onError: resolve,
         onSuccess: () => undefined,
       })

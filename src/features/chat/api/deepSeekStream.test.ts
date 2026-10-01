@@ -9,12 +9,15 @@ import {
   type DeepSeekRequestParams,
 } from './deepSeekProvider'
 
+import { DEFAULT_DEEPSEEK_MODEL_NAME, readDeepSeekModelName } from '../model/deepSeekModel'
+
 import { registerAccessTokenProvider, registerAccessTokenRejectedHandler } from '@/shared/api'
 
 const cleanups: Array<() => void> = []
 
 afterEach(() => {
   cleanups.splice(0).forEach((cleanup) => cleanup())
+  vi.unstubAllEnvs()
   vi.unstubAllGlobals()
 })
 
@@ -36,6 +39,16 @@ function createByteStream(
 }
 
 describe('DeepSeek SSE 流', () => {
+  it('未配置模型变量时请求使用默认模型', () => {
+    vi.stubEnv('VITE_DEEPSEEK_MODEL_NAME', '')
+    const provider = createDeepSeekProvider(readDeepSeekModelName(), {
+      onError: () => undefined,
+      onSuccess: () => undefined,
+    })
+
+    expect(provider.request.options.params?.model).toBe(DEFAULT_DEEPSEEK_MODEL_NAME)
+  })
+
   it('能够跨字节边界解析中文增量和 DONE 事件', async () => {
     const body = [
       'data: {"choices":[{"delta":{"role":"assistant","content":"你"}}]}',
@@ -90,10 +103,10 @@ describe('DeepSeek SSE 流', () => {
   })
 
   it('请求前序列化引用并移除界面元数据', () => {
-    const provider = createDeepSeekProvider(
-      { apiKey: 'test-key', baseUrl: 'https://example.com', modelName: 'deepseek-chat' },
-      { onError: () => undefined, onSuccess: () => undefined },
-    )
+    const provider = createDeepSeekProvider('deepseek-chat', {
+      onError: () => undefined,
+      onSuccess: () => undefined,
+    })
     provider.injectGetMessages(() => [
       {
         role: 'user',
@@ -125,10 +138,10 @@ describe('DeepSeek SSE 流', () => {
   })
 
   it('卡片动作使用请求正文而不是界面摘要', () => {
-    const provider = createDeepSeekProvider(
-      { apiKey: 'test-key', baseUrl: 'https://example.com', modelName: 'deepseek-chat' },
-      { onError: () => undefined, onSuccess: () => undefined },
-    )
+    const provider = createDeepSeekProvider('deepseek-chat', {
+      onError: () => undefined,
+      onSuccess: () => undefined,
+    })
     const actionJson = '{"type":"a2ui_action","name":"plan_apply"}'
     provider.injectGetMessages(() => [
       { role: 'user', content: '已选择「安享一生」正式投保', requestContent: actionJson },
@@ -164,10 +177,10 @@ describe('DeepSeek SSE 流', () => {
         headers: { 'content-type': 'text/event-stream' },
       })
     })
-    const provider = createDeepSeekProvider(
-      { apiKey: 'test-key', baseUrl: 'https://example.com', modelName: 'deepseek-chat' },
-      { onError: () => undefined, onSuccess: () => undefined },
-    )
+    const provider = createDeepSeekProvider('deepseek-chat', {
+      onError: () => undefined,
+      onSuccess: () => undefined,
+    })
     provider.request.run({ thread_id: 'thread-abc' })
     await provider.request.asyncHandler
 
@@ -184,10 +197,10 @@ describe('DeepSeek SSE 流', () => {
         headers: { 'content-type': 'text/event-stream' },
       })
     })
-    const provider = createDeepSeekProvider(
-      { apiKey: 'test-key', baseUrl: 'https://example.com', modelName: 'deepseek-chat' },
-      { onError: () => undefined, onSuccess: () => undefined },
-    )
+    const provider = createDeepSeekProvider('deepseek-chat', {
+      onError: () => undefined,
+      onSuccess: () => undefined,
+    })
     accessToken = 'renewed-token'
     provider.request.run({})
     await provider.request.asyncHandler
@@ -204,10 +217,10 @@ describe('DeepSeek SSE 流', () => {
     vi.stubGlobal('fetch', async () => new Response(undefined, { status: 401 }))
 
     const error = await new Promise<Error>((resolve) => {
-      const provider = createDeepSeekProvider(
-        { apiKey: 'test-key', baseUrl: 'https://example.com', modelName: 'deepseek-chat' },
-        { onError: resolve, onSuccess: () => undefined },
-      )
+      const provider = createDeepSeekProvider('deepseek-chat', {
+        onError: resolve,
+        onSuccess: () => undefined,
+      })
       provider.request.run({})
     })
 

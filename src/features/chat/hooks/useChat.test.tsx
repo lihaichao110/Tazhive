@@ -27,13 +27,6 @@ vi.mock('../api/deepSeekProvider', () => ({
   createDeepSeekProvider: () => ({ request: { abort: providerAbort } }),
 }))
 
-vi.mock('@/shared/config', () => ({
-  readDeepSeekConfig: () => ({
-    config: { apiKey: 'test', baseUrl: 'https://example.com', modelName: 'model' },
-    error: null,
-  }),
-}))
-
 type ChatController = ReturnType<typeof useChat>
 let controller: ChatController | null = null
 

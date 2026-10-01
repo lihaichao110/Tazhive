@@ -33,7 +33,9 @@ location / {
 
 ## 构建环境变量
 
-当前构建不需要额外变量。以后增加的所有 `VITE_*` 值都会写入浏览器资源，不能用于保存真正的密钥。
+当前构建不需要额外变量。前端默认使用 `deepseek-v4-flash`；如需切换模型，可在构建时设置公开的 `VITE_DEEPSEEK_MODEL_NAME`。
+
+DeepSeek API Key 和 Base URL 必须由后端服务器配置。所有 `VITE_*` 值都会写入浏览器资源，不能用于保存密钥。
 
 ## 首次运行
 

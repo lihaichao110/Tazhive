@@ -15,7 +15,6 @@ import type { DeepSeekThinkingConfig } from '../model/chatMode'
 import { parseChatReferences } from '../model/chatReference'
 import type { ChatQuote, ChatReference, ChatRole } from '../model/types'
 
-import type { DeepSeekConfig } from '@/shared/config'
 import {
   getAccessToken,
   HttpError,
@@ -195,9 +194,9 @@ async function fetchChatStream(
   return response
 }
 
-// 将项目配置转换为 X SDK Provider，并把请求生命周期回传给上层 Hook 管理界面状态。
+// 使用前端选定的公开模型名称创建 Provider，密钥与上游地址由后端管理。
 export function createDeepSeekProvider(
-  config: DeepSeekConfig,
+  modelName: string,
   callbacks: DeepSeekProviderCallbacks,
 ): DeepSeekChatProvider<DeepSeekMessage, DeepSeekRequestParams, SSEOutput> {
   // XRequest 只负责传输和流解析；对话消息的组织、重试与错误展示由 useChat 统一处理。
@@ -207,7 +206,7 @@ export function createDeepSeekProvider(
     {
       manual: true,
       params: {
-        model: config.modelName,
+        model: modelName,
         stream: true,
         thinking: { type: 'disabled' },
       },

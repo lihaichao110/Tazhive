@@ -5,10 +5,10 @@ import { describe, expect, it } from 'vitest'
 import { createDeepSeekProvider, type DeepSeekMessage } from './deepSeekProvider'
 
 function createProvider() {
-  return createDeepSeekProvider(
-    { apiKey: 'test-key', baseUrl: 'https://example.com', modelName: 'deepseek-chat' },
-    { onError: () => undefined, onSuccess: () => undefined },
-  )
+  return createDeepSeekProvider('deepseek-chat', {
+    onError: () => undefined,
+    onSuccess: () => undefined,
+  })
 }
 
 describe('DeepSeek 回答来源', () => {

@@ -6,13 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useChat } from '../hooks/useChat'
 
-vi.mock('@/shared/config', () => ({
-  readDeepSeekConfig: () => ({
-    config: { apiKey: 'test', baseUrl: 'https://example.com', modelName: 'test' },
-    error: null,
-  }),
-}))
-
 // 使用真实 Hook 与 SDK，覆盖传输回调到消息列表的完整链路。
 describe('请求最终状态与消息去重', () => {
   let chat: ReturnType<typeof useChat>
