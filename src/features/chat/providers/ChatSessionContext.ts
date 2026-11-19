@@ -3,6 +3,7 @@ import { createContext } from 'react'
 import type { InsuranceActionResponse } from '../api/submitInsuranceAction'
 import type {
   CardActionPayload,
+  ChatImageFile,
   ChatMessage,
   ChatMode,
   ChatQuote,
@@ -21,7 +22,7 @@ export interface ChatSessionValue {
   readonly mode: ChatMode
   readonly quote: ChatQuote | null
   readonly setMode: (mode: ChatMode) => void
-  readonly sendMessage: (text: string) => Promise<boolean>
+  readonly sendMessage: (prompt: string, files?: readonly ChatImageFile[]) => Promise<boolean>
   readonly abort: () => void
   readonly loadHistory: (threadId: string) => Promise<void>
   readonly retryHistory: () => Promise<void>

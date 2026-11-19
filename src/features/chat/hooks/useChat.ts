@@ -21,7 +21,13 @@ import { formatRequestError } from '../lib/formatRequestError'
 import { INITIAL_MESSAGES } from '../model/initialMessages'
 import { DEFAULT_CHAT_MODE, toDeepSeekThinking } from '../model/chatMode'
 import { readDeepSeekModelName } from '../model/deepSeekModel'
-import type { CardActionPayload, ChatMessage, ChatMessageStatus, ChatQuote } from '../model/types'
+import type {
+  CardActionPayload,
+  ChatImageFile,
+  ChatMessage,
+  ChatMessageStatus,
+  ChatQuote,
+} from '../model/types'
 
 const DEEPSEEK_MODEL_NAME = readDeepSeekModelName()
 
@@ -45,6 +51,10 @@ function toChatMessage(info: MessageInfo<DeepSeekMessage>): ChatMessage {
     references: info.message.references ?? [],
     status: info.status as ChatMessageStatus,
     quote: info.message.quote,
+    images: info.message.files?.map((file, index) => ({
+      ...file,
+      id: `${String(info.id)}-image-${index}`,
+    })),
   }
 }
 
@@ -129,10 +139,15 @@ export function useChat() {
   )
 
   const send = useCallback(
-    (rawText: string, quote: undefined | ChatQuote, threadId: string): boolean => {
-      const content = rawText.trim()
+    (
+      prompt: string,
+      quote: undefined | ChatQuote,
+      threadId: string,
+      files?: readonly ChatImageFile[],
+    ): boolean => {
+      const content = prompt.trim()
       if (!content || requestInFlightRef.current || !threadId) return false
-      return requestMessage({ role: 'user', content, quote }, threadId)
+      return requestMessage({ role: 'user', content, quote, files }, threadId)
     },
     [requestMessage],
   )
@@ -162,7 +177,12 @@ export function useChat() {
       setMessages(
         history.map((item) => ({
           id: item.id,
-          message: { role: item.role, content: item.content, references: item.references },
+          message: {
+            role: item.role,
+            content: item.content,
+            references: item.references,
+            files: item.files,
+          },
           status: 'success',
         })),
       )
@@ -178,7 +198,12 @@ export function useChat() {
         history.forEach((item) => {
           const message = {
             id: item.id,
-            message: { role: item.role, content: item.content, references: item.references },
+            message: {
+              role: item.role,
+              content: item.content,
+              references: item.references,
+              files: item.files,
+            },
             status: 'success' as const,
           }
           const existingIndex = next.findIndex((entry) => String(entry.id) === item.id)
@@ -209,6 +234,16 @@ export function useChat() {
       if (failedIndex < 0 || !previousUser) return
 
       const content = previousUser.message.content.trim()
+      if (
+        previousUser.message.files?.some(
+          (file) =>
+            !file.object_key?.startsWith('chat-images/') ||
+            file.object_key.slice('chat-images/'.length).trim() === '',
+        )
+      ) {
+        setRequestError('历史图片缺少有效上传标识，请重新上传图片后再试。')
+        return
+      }
       // 同时移除失败回答和原用户消息，避免重试后出现重复提问。
       setMessages((current) =>
         current.filter(
@@ -224,6 +259,7 @@ export function useChat() {
             content,
             quote: previousUser.message.quote,
             requestContent: previousUser.message.requestContent,
+            files: previousUser.message.files,
           },
         ],
         thinking: toDeepSeekThinking(mode),

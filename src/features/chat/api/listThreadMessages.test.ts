@@ -91,6 +91,29 @@ describe('requestListThreadMessages', () => {
     await expect(requestListThreadMessages('thread-1')).rejects.toThrow('历史消息响应格式不正确')
   })
 
+  it('保留历史图片文件，并兼容只有 file_url 的旧记录', async () => {
+    const message = {
+      id: 'user-image',
+      thread_id: 'thread-1',
+      role: 'user',
+      content: '描述图片',
+      files: [
+        {
+          object_key: 'chat-images/new.png',
+          file_url: 'https://images.example.com/new.png',
+          file_type: 'png',
+        },
+        { file_url: 'https://images.example.com/legacy.png', file_type: 'png' },
+      ],
+      created_at: '2026-11-18T00:00:00Z',
+    }
+    get.mockResolvedValueOnce({ data: [message] })
+
+    await expect(requestListThreadMessages('thread-1')).resolves.toEqual([
+      { ...message, references: [] },
+    ])
+  })
+
   it.each([
     {},
     [{ id: 'message-1', thread_id: 'thread-1', role: 'system', content: '', created_at: '' }],

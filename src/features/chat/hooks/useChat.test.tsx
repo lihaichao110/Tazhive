@@ -6,16 +6,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useChat } from './useChat'
 
-const { abortRequest, onRequest, providerAbort, setMessages } = vi.hoisted(() => ({
+const { abortRequest, onRequest, providerAbort, sdkMessages, setMessages } = vi.hoisted(() => ({
   abortRequest: vi.fn(),
   onRequest: vi.fn(),
   providerAbort: vi.fn(),
+  sdkMessages: [] as Array<Record<string, unknown>>,
   setMessages: vi.fn(),
 }))
 
 vi.mock('@ant-design/x-sdk', () => ({
   useXChat: () => ({
-    messages: [],
+    messages: sdkMessages,
     isRequesting: false,
     onRequest,
     setMessages,
@@ -41,6 +42,7 @@ describe('useChat', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    sdkMessages.length = 0
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
     host = document.createElement('div')
     root = createRoot(host)
@@ -91,5 +93,100 @@ describe('useChat', () => {
       thinking: { type: 'disabled' },
       thread_id: 'thread-1',
     })
+  })
+
+  it('重试沿用原用户问题及其引用元数据', () => {
+    const quote = { messageId: 'assistant-1', role: 'assistant', text: '原回答重点' }
+    const files = [
+      {
+        object_key: 'chat-images/photo.png',
+        file_url: 'https://www.helloimg.com/images/photo.png',
+        file_type: 'png',
+      },
+    ]
+    sdkMessages.push(
+      {
+        id: 'user-1',
+        message: { role: 'user', content: '继续解释', quote, files },
+        status: 'success',
+      },
+      { id: 'assistant-1', message: { role: 'assistant', content: '失败回答' }, status: 'error' },
+    )
+
+    act(() => controller?.retry('assistant-1', 'thread-1'))
+
+    expect(onRequest).toHaveBeenCalledWith({
+      messages: [{ role: 'user', content: '继续解释', quote, requestContent: undefined, files }],
+      thinking: { type: 'disabled' },
+      thread_id: 'thread-1',
+    })
+  })
+
+  it('把图片保存在用户消息中以供会话展示', () => {
+    const files = [
+      {
+        object_key: 'chat-images/photo.jpg',
+        file_url: 'https://www.helloimg.com/images/photo.jpg',
+        file_type: 'jpg',
+      },
+    ]
+    act(() => controller?.send('描述图片', undefined, 'thread-1', files))
+
+    expect(onRequest).toHaveBeenCalledWith({
+      messages: [{ role: 'user', content: '描述图片', quote: undefined, files }],
+      thinking: { type: 'disabled' },
+      thread_id: 'thread-1',
+    })
+  })
+
+  it('旧历史图片缺少 object_key 时阻止重试并提示重新上传', () => {
+    const files = [{ file_url: 'https://images.example.com/legacy.png', file_type: 'png' }]
+    sdkMessages.push(
+      {
+        id: 'legacy-user',
+        message: { role: 'user', content: '描述图片', files },
+        status: 'success',
+      },
+      { id: 'failed-answer', message: { role: 'assistant', content: '失败回答' }, status: 'error' },
+    )
+
+    act(() => controller?.retry('failed-answer', 'thread-1'))
+
+    expect(onRequest).not.toHaveBeenCalled()
+    expect(setMessages).not.toHaveBeenCalled()
+    expect(controller?.error).toBe('历史图片缺少有效上传标识，请重新上传图片后再试。')
+  })
+
+  it('恢复历史消息时保留图片字段以供展示和重试判断', () => {
+    const files = [
+      {
+        object_key: 'chat-images/new.png',
+        file_url: 'https://images.example.com/new.png',
+        file_type: 'png',
+      },
+      { file_url: 'https://images.example.com/legacy.png', file_type: 'png' },
+    ]
+
+    act(() =>
+      controller?.replaceHistory([
+        {
+          id: 'user-history',
+          thread_id: 'thread-1',
+          role: 'user',
+          content: '描述图片',
+          references: [],
+          files,
+          created_at: '2026-11-18T00:00:00Z',
+        },
+      ]),
+    )
+
+    expect(setMessages).toHaveBeenCalledWith([
+      {
+        id: 'user-history',
+        message: { role: 'user', content: '描述图片', references: [], files },
+        status: 'success',
+      },
+    ])
   })
 })

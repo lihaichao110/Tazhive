@@ -12,6 +12,22 @@
   max-width: 100%;
 }
 
+.sentImages {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: min(320px, 70vw);
+}
+
+.sentImage {
+  display: block;
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
 .userBubble {
   width: fit-content;
   max-width: 75%;

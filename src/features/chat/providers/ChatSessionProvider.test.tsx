@@ -148,7 +148,12 @@ describe('ChatSessionProvider', () => {
     expect(requestCreateThread).toHaveBeenCalledOnce()
     expect(requestCreateThread.mock.calls[0]?.[0]).toHaveLength(21)
     expect(requestCreateThread.mock.calls[0]?.[0].endsWith('…')).toBe(true)
-    expect(chatMocks.send).toHaveBeenCalledWith(FIRST_MESSAGE, undefined, 'server-thread-1')
+    expect(chatMocks.send).toHaveBeenCalledWith(
+      FIRST_MESSAGE,
+      undefined,
+      'server-thread-1',
+      undefined,
+    )
     expect(store.getState().selectedConversationId).toBe('server-thread-1')
     // 绑定当前会话不重建聊天 Provider，sessionVersion 保持不变。
     expect(store.getState().sessionVersion).toBe(0)
@@ -181,7 +186,7 @@ describe('ChatSessionProvider', () => {
     await act(async () => {})
 
     expect(requestCreateThread).not.toHaveBeenCalled()
-    expect(chatMocks.send).toHaveBeenCalledWith('继续解释', undefined, 'existing-thread')
+    expect(chatMocks.send).toHaveBeenCalledWith('继续解释', undefined, 'existing-thread', undefined)
   })
 
   it('建线程失败时拒绝发送并暴露错误', async () => {
@@ -215,7 +220,7 @@ describe('ChatSessionProvider', () => {
     click(host, '发送')
     await act(async () => {})
 
-    expect(chatMocks.send).toHaveBeenCalledWith('继续解释', QUOTE, 'existing-thread')
+    expect(chatMocks.send).toHaveBeenCalledWith('继续解释', QUOTE, 'existing-thread', undefined)
     expect(host.querySelector('[data-quote]')?.textContent).toBe('无引用')
   })
 

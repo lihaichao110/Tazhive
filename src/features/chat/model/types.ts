@@ -33,6 +33,25 @@ export interface ChatQuote {
   readonly text: string
 }
 
+/** 发给聊天接口的图片数据；object_key 由上传接口生成，file_url 用于展示。 */
+export interface ChatImageFile {
+  readonly object_key: string
+  readonly file_url: string
+  readonly file_type: string
+}
+
+/** 历史图片展示字段；旧记录可能只有 URL，因此 object_key 仅在展示模型中可选。 */
+export interface ChatMessageImageFile {
+  readonly object_key?: string
+  readonly file_url: string
+  readonly file_type: string
+}
+
+/** 当前会话图片展示用的稳定标识；不会进入聊天接口请求体。 */
+export interface ChatMessageImage extends ChatMessageImageFile {
+  readonly id: string
+}
+
 /** 普通 Markdown 文本内容块。 */
 export interface TextMessageContent {
   /** 内容块判别字段。 */
@@ -165,4 +184,6 @@ export interface ChatMessage {
   readonly status: ChatMessageStatus
   /** 用户消息可选的原文引用信息。 */
   readonly quote?: ChatQuote
+  /** 当前会话中用户发送的图片；历史恢复由服务端历史消息协议决定。 */
+  readonly images?: readonly ChatMessageImage[]
 }

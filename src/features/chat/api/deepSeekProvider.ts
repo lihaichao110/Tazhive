@@ -13,7 +13,13 @@ import { readChatHttpError } from './readChatHttpError'
 import { serializeQuotedPrompt } from '../lib/quoteMessage'
 import type { DeepSeekThinkingConfig } from '../model/chatMode'
 import { parseChatReferences } from '../model/chatReference'
-import type { ChatQuote, ChatReference, ChatRole } from '../model/types'
+import type {
+  ChatImageFile,
+  ChatMessageImageFile,
+  ChatQuote,
+  ChatReference,
+  ChatRole,
+} from '../model/types'
 
 import {
   getAccessToken,
@@ -29,10 +35,15 @@ export interface DeepSeekMessage extends XModelMessage {
   readonly references?: readonly ChatReference[]
   /** 与界面展示正文不同时，使用该字段作为实际发送给模型的正文。 */
   readonly requestContent?: string
+  readonly files?: readonly ChatMessageImageFile[]
 }
 
 export interface DeepSeekRequestParams extends XModelParams {
   readonly messages?: DeepSeekMessage[]
+  /** 后端聊天接口只接收本次用户输入，不接收完整消息数组。 */
+  readonly prompt?: string
+  /** 本次用户消息附带的图片，使用图床 URL 与扩展名编码。 */
+  readonly files?: readonly ChatImageFile[]
   readonly thinking?: DeepSeekThinkingConfig
   /** 本次对话归属的服务端线程 ID，由后端用于关联与持久化消息。 */
   readonly thread_id?: string
@@ -83,7 +94,7 @@ function readUpstreamErrorMessage(
   return null
 }
 
-// 请求边界只发送 DeepSeek 支持的字段，并把本地引用元数据编码进消息正文。
+// SDK 内部仍用单条用户消息管理流式状态；请求边界将其转换为后端的 prompt 字段。
 class QuotedDeepSeekChatProvider extends DeepSeekChatProvider<
   DeepSeekMessage,
   DeepSeekRequestParams,
@@ -94,12 +105,29 @@ class QuotedDeepSeekChatProvider extends DeepSeekChatProvider<
     options: XRequestOptions<DeepSeekRequestParams, SSEOutput, DeepSeekMessage>,
   ): DeepSeekRequestParams {
     const params = super.transformParams(requestParams, options)
+    // 发送与重试均只带本次用户消息；引用转为上下文文本，卡片动作优先使用结构化 JSON。
+    const userMessage = params.messages?.at(-1)
+    const prompt = userMessage
+      ? (userMessage.requestContent ??
+        serializeQuotedPrompt(userMessage.content, userMessage.quote))
+      : ''
+    const files = userMessage?.files ?? params.files
+    if (
+      files &&
+      !files.every(
+        (file): file is ChatImageFile =>
+          typeof file.object_key === 'string' &&
+          file.object_key.startsWith('chat-images/') &&
+          file.object_key.slice('chat-images/'.length).trim() !== '',
+      )
+    ) {
+      throw new Error('历史图片缺少有效上传标识，请重新上传图片后再试。')
+    }
     return {
       ...params,
-      messages: params.messages?.map(({ content, quote, requestContent, role }) => ({
-        role,
-        content: requestContent ?? serializeQuotedPrompt(content, quote),
-      })),
+      messages: undefined,
+      prompt,
+      files,
     }
   }
 

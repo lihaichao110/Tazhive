@@ -1,42 +1,22 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Sender } from '@ant-design/x'
-import type { SenderRef, SlotConfigType } from '@ant-design/x/es/sender'
-import { Dropdown, type MenuProps } from 'antd'
-import { Database, LayoutGrid, Paperclip, X } from 'lucide-react'
-import { useNavigate } from 'react-router'
+import type { SenderRef } from '@ant-design/x/es/sender'
+import type { ActionsComponents } from '@ant-design/x/es/sender/interface'
+import { X } from 'lucide-react'
 
 import styles from './ChatComposer.module.scss'
-import { ChatAttachmentPicker } from './ChatAttachmentPicker'
-import { ChatModeSelector } from '../ChatModeSelector/ChatModeSelector'
+import { ChatComposerFooter } from './ChatComposerFooter'
+import { ChatImagePreview, type SelectedChatImage } from './ChatImagePreview'
 
+import { uploadChatImage } from '../../api/uploadChatImage'
 import { useChatSession } from '../../providers/useChatSession'
-import { APP_ROUTES } from '@/shared/config'
 
-const MORE_MENU_ITEMS: MenuProps['items'] = [
-  {
-    key: 'knowledge-base',
-    icon: <Database size={16} aria-hidden="true" />,
-    label: '知识库',
-  },
-]
+// 单条消息的图片数量限制。
+const MAX_CHAT_IMAGES = 3
+const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 
-const ATTACHMENT_SLOT_KEY = 'chat-attachment'
-const ATTACHMENT_SLOT_MARKER = '[附件]'
-
-interface ComposerFooterProps {
-  readonly actionNode: ReactNode
-  readonly attachmentNotice: string | null
-  readonly attachmentDisabled: boolean
-  readonly onFileSelected: (file: File) => void
-}
-
-interface ChatAttachment {
-  readonly slotKey: string
-  readonly file: File
-}
-
-function isAttachmentSlot(config: SlotConfigType): boolean {
-  return config.key === ATTACHMENT_SLOT_KEY
+interface ComposerFooterRenderInfo {
+  readonly components: ActionsComponents
 }
 
 // 粗指针设备通常由触屏操作，发送成功后应释放输入焦点以收起软键盘。
@@ -44,171 +24,195 @@ function isMobileLikeDevice(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches
 }
 
-// 底部工具行：左侧为自定义工具按钮，右侧为 Sender 默认的语音与发送按钮。
-function ComposerFooter({
-  actionNode,
-  attachmentNotice,
-  attachmentDisabled,
-  onFileSelected,
-}: ComposerFooterProps) {
-  const { isReplying, mode, setMode } = useChatSession()
-  const navigate = useNavigate()
-
-  const handleMoreMenuClick: MenuProps['onClick'] = ({ key }) => {
-    if (key === 'knowledge-base') void navigate(APP_ROUTES.knowledgeBase)
-  }
-
-  return (
-    <div className={styles.footerContent}>
-      {attachmentNotice ? (
-        <p className={styles.attachmentNotice} role="alert">
-          {attachmentNotice}
-        </p>
-      ) : null}
-      <div className={styles.toolbar}>
-        <div className={styles.toolbarLeft}>
-          <ChatAttachmentPicker disabled={attachmentDisabled} onFileSelected={onFileSelected} />
-          <ChatModeSelector disabled={isReplying} mode={mode} onChange={setMode} />
-          <Dropdown
-            menu={{ items: MORE_MENU_ITEMS, onClick: handleMoreMenuClick }}
-            placement="topLeft"
-            trigger={['click']}
-          >
-            <button
-              type="button"
-              className={styles.toolButton}
-              aria-label="更多操作"
-              aria-haspopup="menu"
-              title="更多"
-            >
-              <LayoutGrid size={16} />
-              <span className={styles.toolLabel}>更多</span>
-            </button>
-          </Dropdown>
-        </div>
-        {actionNode}
-      </div>
-    </div>
-  )
-}
-
-// 管理输入草稿、引用展示，并将发送与取消动作交给会话 Hook 处理。
+// 管理文字草稿和本地图片生命周期；请求与会话状态交给业务 Hook。
 export function ChatComposer() {
   const { abort, clearQuote, isReplying, quote, sendMessage } = useChatSession()
   const senderRef = useRef<SenderRef>(null)
+  const objectUrlsRef = useRef(new Set<string>())
+  const uploadControllersRef = useRef(new Map<string, AbortController>())
+  const nextImageIdRef = useRef(0)
+  const isSubmittingRef = useRef(false)
   const [value, setValue] = useState('')
-  const [editorSlots, setEditorSlots] = useState<SlotConfigType[]>([])
-  const [attachment, setAttachment] = useState<ChatAttachment | null>(null)
+  const [images, setImages] = useState<SelectedChatImage[]>([])
   const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const hasUploadingImages = images.some((image) => image.status === 'uploading')
+  const hasFailedImages = images.some((image) => image.status === 'error')
+  const sendDisabled = isReplying || isSubmitting || hasUploadingImages || hasFailedImages
 
-  // 移除附件词槽：先删 DOM 节点，再从干净的 DOM 重新推导剩余内容同步受控状态。
-  // 限制：@ant-design/x 的 SlotTextArea 仅在 slotConfig 非空时才重建编辑器 DOM，
-  // 空数组分支不会清理标签，且库内部的 removeSlot 未通过 SenderRef 暴露，
-  // 因此这里对齐库内做法直接移除节点，保证仅剩附件时标签也能立即消失。
-  // filter 兜底用于 nativeElement 不可用的场景（如测试替身），正常路径下 DOM 已删、过滤为空操作。
-  const removeAttachment = useCallback((): void => {
-    senderRef.current?.nativeElement
-      ?.querySelectorAll(`[data-slot-key="${ATTACHMENT_SLOT_KEY}"]`)
-      .forEach((node) => node.remove())
-    const remaining = senderRef.current?.getValue()
-    setValue(remaining?.value ?? '')
-    setEditorSlots((remaining?.slotConfig ?? []).filter((config) => !isAttachmentSlot(config)))
-    setAttachment(null)
-    setAttachmentNotice(null)
-  }, [])
-
-  // 将本地文件表示为原子词槽；占位文本只用于启用发送按钮，不会进入请求。
-  const createAttachmentSlot = useCallback(
-    (file: File): SlotConfigType => ({
-      type: 'tag',
-      key: ATTACHMENT_SLOT_KEY,
-      formatResult: () => ATTACHMENT_SLOT_MARKER,
-      props: {
-        value: file.name,
-        label: (
-          <span className={styles.fileSlot}>
-            <Paperclip className={styles.fileSlotIcon} size={14} aria-hidden="true" />
-            <span className={styles.fileSlotName} title={file.name}>
-              {file.name}
-            </span>
-            <button
-              type="button"
-              className={styles.fileSlotRemove}
-              aria-label={`移除附件 ${file.name}`}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={(event) => {
-                event.stopPropagation()
-                removeAttachment()
-              }}
-            >
-              <X className={styles.fileSlotRemoveIcon} size={12} aria-hidden="true" />
-            </button>
-          </span>
-        ),
-      },
-    }),
-    [removeAttachment],
+  // 组件卸载时取消尚未完成的图床请求，并释放预览 URL。
+  useEffect(
+    () => () => {
+      uploadControllersRef.current.forEach((controller) => controller.abort())
+      uploadControllersRef.current.clear()
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
+      objectUrlsRef.current.clear()
+    },
+    [],
   )
 
-  // 单文件模式下，新选择会替换旧附件，并保留编辑器中的其他内容。
-  const handleFileSelected = useCallback(
-    (file: File): void => {
-      const currentSlots = senderRef.current?.getValue().slotConfig ?? []
-      const nextSlots = currentSlots.filter((config) => !isAttachmentSlot(config))
-      nextSlots.push(createAttachmentSlot(file))
-      setAttachment({ slotKey: ATTACHMENT_SLOT_KEY, file })
-      setAttachmentNotice(`已选择 ${file.name}，文件上传能力待接入。`)
-      setEditorSlots(nextSlots)
+  // 每张图片独立上传；失败状态留在预览卡片上，可单独重试或移除。
+  const uploadImage = useCallback(async (id: string, file: File): Promise<void> => {
+    const controller = new AbortController()
+    uploadControllersRef.current.set(id, controller)
+    try {
+      const uploadedImage = await uploadChatImage(file, controller.signal)
+      setImages((current) =>
+        current.map((image) =>
+          image.id === id
+            ? { ...image, status: 'uploaded', uploadedImage, uploadError: undefined }
+            : image,
+        ),
+      )
+    } catch (error) {
+      if (controller.signal.aborted) return
+      setImages((current) =>
+        current.map((image) =>
+          image.id === id
+            ? {
+                ...image,
+                status: 'error',
+                uploadError: error instanceof Error ? error.message : '图片上传失败，请重试。',
+              }
+            : image,
+        ),
+      )
+    } finally {
+      if (uploadControllersRef.current.get(id) === controller) {
+        uploadControllersRef.current.delete(id)
+      }
+    }
+  }, [])
+
+  const removeImage = useCallback(
+    (id: string): void => {
+      const removed = images.find((image) => image.id === id)
+      uploadControllersRef.current.get(id)?.abort()
+      uploadControllersRef.current.delete(id)
+      if (removed) {
+        URL.revokeObjectURL(removed.previewUrl)
+        objectUrlsRef.current.delete(removed.previewUrl)
+      }
+      setImages(images.filter((image) => image.id !== id))
+      setAttachmentNotice(null)
     },
-    [createAttachmentSlot],
+    [images],
+  )
+
+  const handleFilesSelected = useCallback(
+    (files: readonly File[]): void => {
+      const imageFiles = files.filter((file) => SUPPORTED_IMAGE_TYPES.has(file.type.toLowerCase()))
+      const remaining = MAX_CHAT_IMAGES - images.length
+      const acceptedFiles = imageFiles.slice(0, Math.max(remaining, 0))
+      const nextImages = acceptedFiles.map((file) => {
+        const previewUrl = URL.createObjectURL(file)
+        objectUrlsRef.current.add(previewUrl)
+        nextImageIdRef.current += 1
+        return {
+          id: String(nextImageIdRef.current),
+          file,
+          previewUrl,
+          status: 'uploading' as const,
+        }
+      })
+      if (nextImages.length > 0) setImages((current) => [...current, ...nextImages])
+      // 选择完成后立即并发上传；请求使用服务端 key，预览继续使用返回的 URL。
+      nextImages.forEach((image) => void uploadImage(image.id, image.file))
+
+      if (imageFiles.length !== files.length) {
+        setAttachmentNotice('仅支持 JPEG、PNG、GIF 或 WebP 图片。')
+      } else if (imageFiles.length > acceptedFiles.length) {
+        setAttachmentNotice(`每条消息最多添加 ${MAX_CHAT_IMAGES} 张图片。`)
+      } else if (nextImages.length > 0) setAttachmentNotice(null)
+    },
+    [images.length, uploadImage],
+  )
+
+  const retryImage = useCallback(
+    (id: string): void => {
+      const image = images.find((item) => item.id === id)
+      if (!image || image.status !== 'error') return
+      setImages((current) =>
+        current.map((item) =>
+          item.id === id ? { ...item, status: 'uploading', uploadError: undefined } : item,
+        ),
+      )
+      setAttachmentNotice(null)
+      void uploadImage(image.id, image.file)
+    },
+    [images, uploadImage],
   )
 
   const renderFooter = useCallback(
-    (actionNode: ReactNode) => (
-      <ComposerFooter
-        actionNode={actionNode}
-        attachmentNotice={attachmentNotice}
-        attachmentDisabled={isReplying}
-        onFileSelected={handleFileSelected}
-      />
-    ),
-    [attachmentNotice, handleFileSelected, isReplying],
-  )
+    (_actionNode: ReactNode, { components }: ComposerFooterRenderInfo) => {
+      const actionNode = (
+        <div className={styles.senderActions}>
+          <components.SpeechButton />
+          {isReplying ? (
+            <components.LoadingButton />
+          ) : (
+            <components.SendButton disabled={sendDisabled || !value.trim()} />
+          )}
+        </div>
+      )
 
-  const handleChange = useCallback(
-    (nextValue: string, _event?: unknown, nextSlots: SlotConfigType[] = []): void => {
-      setValue(nextValue)
-      // 退格或剪切删除原子词槽时，同步释放本地文件引用。
-      if (attachment && !nextSlots.some(isAttachmentSlot)) {
-        setAttachment(null)
-        setAttachmentNotice(null)
-        setEditorSlots([...nextSlots])
-      }
+      return (
+        <ChatComposerFooter
+          actionNode={actionNode}
+          attachmentNotice={attachmentNotice}
+          attachmentDisabled={isReplying || isSubmitting}
+          onFilesSelected={handleFilesSelected}
+        />
+      )
     },
-    [attachment],
+    [attachmentNotice, handleFilesSelected, isReplying, isSubmitting, sendDisabled, value],
   )
 
   const handleSubmit = useCallback(
-    (content: string, submittedSlots: SlotConfigType[] = []) => {
-      if (attachment || submittedSlots.some(isAttachmentSlot)) {
-        setAttachmentNotice('文件上传能力待接入，暂时无法随消息发送。')
+    (content: string) => {
+      const prompt = content.trim()
+      // 图片随消息发送仍要求填写文字，避免空 prompt 触发后端不支持的请求。
+      if (!prompt || isSubmittingRef.current) return
+      if (hasUploadingImages) {
+        setAttachmentNotice('图片仍在上传，请稍候再发送。')
         return
       }
-      const text = content.trim()
-      // Sender 空值时禁用发送，这里兜底纯空白内容。
-      if (!text) return
-      // 发送可能先经历首条消息建线程的异步等待；被拒绝时保留草稿，便于用户修复问题后重新发送。
-      void Promise.resolve(sendMessage(text)).then((accepted) => {
-        if (!accepted) return
-        if (isMobileLikeDevice()) senderRef.current?.blur()
-        senderRef.current?.clear()
-        setValue('')
-        setEditorSlots([])
-        setAttachment(null)
-        setAttachmentNotice(null)
-      })
+      if (hasFailedImages) {
+        setAttachmentNotice('请重试或移除上传失败的图片。')
+        return
+      }
+
+      const files = images.flatMap((image) => (image.uploadedImage ? [image.uploadedImage] : []))
+      if (files.length !== images.length) return
+
+      isSubmittingRef.current = true
+      setIsSubmitting(true)
+      setAttachmentNotice(null)
+
+      // 上传已在选择后完成；聊天请求失败时保留图片 key、URL 和草稿供用户重试。
+      void (async () => {
+        try {
+          const accepted = await (files.length > 0
+            ? sendMessage(prompt, files)
+            : sendMessage(prompt))
+          if (!accepted) return
+          if (isMobileLikeDevice()) senderRef.current?.blur()
+          senderRef.current?.clear()
+          setValue('')
+          setImages([])
+          uploadControllersRef.current.clear()
+          objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
+          objectUrlsRef.current.clear()
+          setAttachmentNotice(null)
+        } catch (error) {
+          setAttachmentNotice(error instanceof Error ? error.message : '图片处理失败，请重试。')
+        } finally {
+          isSubmittingRef.current = false
+          setIsSubmitting(false)
+        }
+      })()
     },
-    [attachment, sendMessage],
+    [hasFailedImages, hasUploadingImages, images, sendMessage],
   )
 
   const quoteSource = quote?.role === 'assistant' ? '引用 AI 回答' : '引用你的问题'
@@ -240,19 +244,22 @@ export function ChatComposer() {
     <Sender
       ref={senderRef}
       value={value}
-      slotConfig={editorSlots}
-      onChange={handleChange}
+      onChange={(nextValue) => setValue(nextValue)}
       onSubmit={handleSubmit}
       onCancel={abort}
       loading={isReplying}
       allowSpeech
       placeholder="发消息..."
       autoSize={{ minRows: 1, maxRows: 8 }}
-      // suffix=false 移除输入行右侧的默认按钮组，改由 footer 承载，
-      // 输入区独占一行全宽，避免移动端窄屏下被工具按钮挤压换行。
+      // 输入区独占一行全宽，工具按钮与发送操作统一放在 footer。
       suffix={false}
       footer={renderFooter}
-      header={quoteHeader}
+      header={
+        <>
+          {quoteHeader}
+          <ChatImagePreview images={images} onRemove={removeImage} onRetry={retryImage} />
+        </>
+      }
       classNames={{ root: styles.sender }}
     />
   )

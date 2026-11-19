@@ -57,6 +57,32 @@ describe('ChatMessage', () => {
     expect(markup).not.toContain('引用你的问题')
   })
 
+  it('在当前用户消息中展示随请求保留的图片', () => {
+    const markup = renderToStaticMarkup(
+      <ChatSessionTestProvider>
+        <ChatMessage
+          message={{
+            id: 'user-image',
+            role: 'user',
+            content: [{ type: 'text', text: '描述图片' }],
+            references: [],
+            images: [
+              {
+                id: 'user-image-1',
+                file_url: 'https://www.helloimg.com/images/photo.png',
+                file_type: 'png',
+              },
+            ],
+            status: 'local',
+          }}
+        />
+      </ChatSessionTestProvider>,
+    )
+
+    expect(markup).toContain('src="https://www.helloimg.com/images/photo.png"')
+    expect(markup).toContain('alt="已发送图片 1"')
+  })
+
   it('成功的 AI 回答使用无背景气泡并在左侧底部显示复制按钮', () => {
     const markup = renderToStaticMarkup(
       <ChatSessionTestProvider>

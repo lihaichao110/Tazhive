@@ -109,6 +109,18 @@ export function ChatMessage({ message }: ChatMessageProps) {
           content={
             <div className={styles.userMessage}>
               {message.quote ? <QuoteCard quote={message.quote} /> : null}
+              {message.images && message.images.length > 0 ? (
+                <div className={styles.sentImages} aria-label="已发送图片" role="group">
+                  {message.images.map((image, index) => (
+                    <img
+                      className={styles.sentImage}
+                      key={image.id}
+                      src={image.file_url}
+                      alt={`已发送图片 ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              ) : null}
               <ChatMessageContent
                 content={message.content}
                 role={message.role}

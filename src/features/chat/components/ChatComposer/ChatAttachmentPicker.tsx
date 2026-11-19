@@ -1,43 +1,24 @@
 import { useMemo, useRef, type ChangeEvent } from 'react'
 import { Dropdown, type MenuProps } from 'antd'
-import { FileUp, Plus } from 'lucide-react'
+import { ImagePlus, Plus } from 'lucide-react'
 
 import styles from './ChatComposer.module.scss'
 
-const CHAT_ATTACHMENT_ACCEPT = [
-  '.pdf',
-  '.doc',
-  '.docx',
-  '.xls',
-  '.xlsx',
-  '.ppt',
-  '.pptx',
-  '.txt',
-  '.md',
-  '.csv',
-  '.json',
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.webp',
-  '.gif',
-].join(',')
-
 interface ChatAttachmentPickerProps {
   readonly disabled: boolean
-  readonly onFileSelected: (file: File) => void
+  readonly onFilesSelected: (files: readonly File[]) => void
 }
 
-// 提供聊天附件的单文件选择入口；当前只返回本地 File，不承担上传职责。
-export function ChatAttachmentPicker({ disabled, onFileSelected }: ChatAttachmentPickerProps) {
+// 只负责选择图片并将本地 File 列表交给 Composer 管理。
+export function ChatAttachmentPicker({ disabled, onFilesSelected }: ChatAttachmentPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const menu = useMemo<MenuProps>(
     () => ({
       items: [
         {
           key: 'upload-file',
-          icon: <FileUp size={16} aria-hidden="true" />,
-          label: '上传文件或图片',
+          icon: <ImagePlus size={16} aria-hidden="true" />,
+          label: '上传图片',
           disabled,
         },
       ],
@@ -49,9 +30,9 @@ export function ChatAttachmentPicker({ disabled, onFileSelected }: ChatAttachmen
   )
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
-    const file = event.target.files?.[0]
-    if (file) onFileSelected(file)
-    // 允许移除或替换后再次选择同名文件。
+    const files = Array.from(event.target.files ?? [])
+    if (files.length > 0) onFilesSelected(files)
+    // 允许移除后再次选择同一批图片。
     event.target.value = ''
   }
 
@@ -61,7 +42,8 @@ export function ChatAttachmentPicker({ disabled, onFileSelected }: ChatAttachmen
         ref={inputRef}
         className={styles.fileInput}
         type="file"
-        accept={CHAT_ATTACHMENT_ACCEPT}
+        accept="image/jpeg,image/png,image/gif,image/webp"
+        multiple
         aria-hidden="true"
         tabIndex={-1}
         disabled={disabled}

@@ -102,7 +102,7 @@ describe('DeepSeek SSE 流', () => {
     expect(second).toEqual({ role: 'assistant', content: '你好' })
   })
 
-  it('请求前序列化引用并移除界面元数据', () => {
+  it('请求前把引用与本次问题合并为 prompt', () => {
     const provider = createDeepSeekProvider('deepseek-chat', {
       onError: () => undefined,
       onSuccess: () => undefined,
@@ -127,14 +127,8 @@ describe('DeepSeek SSE 流', () => {
 
     const params = provider.transformParams({}, provider.request.options)
 
-    expect(params.messages).toEqual([
-      {
-        role: 'user',
-        content: '引用（来自AI 回答）：\n\n> 关键结论\n\n我的问题：\n请展开说明',
-      },
-    ])
-    expect(params.messages?.[0]).not.toHaveProperty('quote')
-    expect(params.messages?.[0]).not.toHaveProperty('references')
+    expect(params.prompt).toBe('引用（来自AI 回答）：\n\n> 关键结论\n\n我的问题：\n请展开说明')
+    expect(params.messages).toBeUndefined()
   })
 
   it('卡片动作使用请求正文而不是界面摘要', () => {
@@ -149,8 +143,93 @@ describe('DeepSeek SSE 流', () => {
 
     const params = provider.transformParams({}, provider.request.options)
 
-    expect(params.messages).toEqual([{ role: 'user', content: actionJson }])
-    expect(params.messages?.[0]).not.toHaveProperty('requestContent')
+    expect(params.prompt).toBe(actionJson)
+    expect(params.messages).toBeUndefined()
+  })
+
+  it('图片作为 files 与 prompt 同级发送', () => {
+    const files = [
+      {
+        object_key: 'chat-images/photo.png',
+        file_url: 'https://www.helloimg.com/images/photo.png',
+        file_type: 'png',
+      },
+    ]
+    const provider = createDeepSeekProvider('deepseek-chat', {
+      onError: () => undefined,
+      onSuccess: () => undefined,
+    })
+    provider.injectGetMessages(() => [{ role: 'user', content: '描述图片', files }])
+
+    const params = provider.transformParams({}, provider.request.options)
+
+    expect(params.prompt).toBe('描述图片')
+    expect(params.files).toEqual(files)
+    expect(params.files?.[0]?.object_key).toBe('chat-images/photo.png')
+    expect(params.messages).toBeUndefined()
+  })
+
+  it('拒绝把缺少 object_key 的历史图片放入聊天请求', () => {
+    const provider = createDeepSeekProvider('deepseek-chat', {
+      onError: () => undefined,
+      onSuccess: () => undefined,
+    })
+    provider.injectGetMessages(() => [
+      {
+        role: 'user',
+        content: '描述图片',
+        files: [{ file_url: 'https://www.helloimg.com/images/photo.png', file_type: 'png' }],
+      },
+    ])
+
+    expect(() => provider.transformParams({}, provider.request.options)).toThrow(
+      '历史图片缺少有效上传标识，请重新上传图片后再试。',
+    )
+  })
+
+  it('实际请求体只发送本次 prompt，不包含历史 messages', async () => {
+    let requestBody: unknown
+    vi.stubGlobal('fetch', async (_input: RequestInfo | URL, options?: RequestInit) => {
+      requestBody = JSON.parse(String(options?.body))
+      return new Response('data: [DONE]\n\n', {
+        headers: { 'content-type': 'text/event-stream' },
+      })
+    })
+    const provider = createDeepSeekProvider('deepseek-chat', {
+      onError: () => undefined,
+      onSuccess: () => undefined,
+    })
+    provider.injectGetMessages(() => [
+      { role: 'user', content: '上一轮问题' },
+      { role: 'assistant', content: '上一轮回答' },
+      {
+        role: 'user',
+        content: '只发送这个问题',
+        files: [
+          {
+            object_key: 'chat-images/photo.png',
+            file_url: 'https://www.helloimg.com/images/photo.png',
+            file_type: 'png',
+          },
+        ],
+      },
+    ])
+    const params = provider.transformParams({}, provider.request.options)
+    provider.request.run(params)
+    await provider.request.asyncHandler
+
+    expect(requestBody).toMatchObject({ prompt: '只发送这个问题' })
+    expect(requestBody).toMatchObject({
+      files: [
+        {
+          object_key: 'chat-images/photo.png',
+          file_url: 'https://www.helloimg.com/images/photo.png',
+          file_type: 'png',
+        },
+      ],
+    })
+    expect(JSON.stringify(requestBody)).not.toContain('data:image/')
+    expect(requestBody).not.toHaveProperty('messages')
   })
 
   it('HTTP 错误通过 onError 返回', async () => {

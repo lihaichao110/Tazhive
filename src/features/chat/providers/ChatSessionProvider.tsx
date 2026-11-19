@@ -6,7 +6,7 @@ import { requestListThreadMessages } from '../api/listThreadMessages'
 import { requestInsuranceAction } from '../api/submitInsuranceAction'
 import { useChat } from '../hooks/useChat'
 import { useThreadBootstrap } from '../hooks/useThreadBootstrap'
-import type { ChatQuote, InsuranceActionPayload } from '../model/types'
+import type { ChatImageFile, ChatQuote, InsuranceActionPayload } from '../model/types'
 
 interface ChatSessionProviderProps {
   readonly children: ReactNode
@@ -86,11 +86,11 @@ export function ChatSessionProvider({ children }: ChatSessionProviderProps) {
   // 新会话首条消息先建线程再发送；建线程失败则拒绝发送，让用户保留草稿重试。
   // 发送成功后引用已进入消息协议，应同步清空；请求被拒绝时保留引用供用户重试。
   const sendMessage = useCallback(
-    async (text: string): Promise<boolean> => {
+    async (prompt: string, files?: readonly ChatImageFile[]): Promise<boolean> => {
       if (isHistoryLoading) return false
-      const threadId = await ensureThread(text)
+      const threadId = await ensureThread(prompt)
       if (!threadId) return false
-      const accepted = chat.send(text, quote ?? undefined, threadId)
+      const accepted = chat.send(prompt, quote ?? undefined, threadId, files)
       if (accepted) setQuote(null)
       return accepted
     },

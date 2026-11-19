@@ -1,5 +1,5 @@
 import { parseChatReferences } from '../model/chatReference'
-import type { ChatReference, ChatRole } from '../model/types'
+import type { ChatMessageImageFile, ChatReference, ChatRole } from '../model/types'
 
 import { createHttpClient } from '@/shared/api'
 
@@ -10,6 +10,7 @@ export interface ThreadMessageRead {
   readonly role: ChatRole
   readonly content: string
   readonly references: readonly ChatReference[]
+  readonly files?: readonly ChatMessageImageFile[]
   readonly created_at: string
 }
 
@@ -24,13 +25,15 @@ function parseThreadMessageList(value: unknown): readonly ThreadMessageRead[] | 
     const message = item as Record<string, unknown>
     const references =
       message.references === undefined ? [] : parseChatReferences(message.references)
+    const files = parseHistoryImageFiles(message.files)
     if (
       typeof message.id !== 'string' ||
       typeof message.thread_id !== 'string' ||
       (message.role !== 'user' && message.role !== 'assistant') ||
       typeof message.content !== 'string' ||
       typeof message.created_at !== 'string' ||
-      references === null
+      references === null ||
+      files === null
     ) {
       return null
     }
@@ -40,10 +43,33 @@ function parseThreadMessageList(value: unknown): readonly ThreadMessageRead[] | 
       role: message.role,
       content: message.content,
       references,
+      ...(files === undefined ? {} : { files }),
       created_at: message.created_at,
     })
   }
   return messages
+}
+
+// 历史图片仅用于展示和重试判断；旧记录缺少 object_key 时仍保留 URL。
+function parseHistoryImageFiles(
+  value: unknown,
+): readonly ChatMessageImageFile[] | undefined | null {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) return null
+
+  const files: ChatMessageImageFile[] = []
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) return null
+    const file = item as Record<string, unknown>
+    if (typeof file.file_url !== 'string' || typeof file.file_type !== 'string') return null
+    if (file.object_key !== undefined && typeof file.object_key !== 'string') return null
+    files.push({
+      ...(typeof file.object_key === 'string' ? { object_key: file.object_key } : {}),
+      file_url: file.file_url,
+      file_type: file.file_type,
+    })
+  }
+  return files
 }
 
 // 拉取指定线程的历史消息；数组顺序由服务端决定，前端不再重排。
